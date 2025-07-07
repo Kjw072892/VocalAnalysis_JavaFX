@@ -3,6 +3,7 @@ package com.kass.vocalanalysistool;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.fxml.FXML;
@@ -11,6 +12,7 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.image.Image;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
@@ -38,6 +40,8 @@ public class SelectAudioFileController {
 
         if (file != null) {
              String path = file.getAbsolutePath();
+
+             //TODO::Create a python class that runs parslemouth
               //add python class
              //PythonAudioProcessor processor = new PythonAudioProcessor();
             //String results = processor.process(path); [Method in processor that returns
@@ -57,6 +61,9 @@ public class SelectAudioFileController {
                 audioDataControllerStage.setScene(new Scene(root));
                 audioDataControllerStage.show();
                 audioDataControllerStage.setResizable(false);
+                audioDataControllerStage.getIcons().add(new Image(Objects.requireNonNull
+                        (getClass().getResourceAsStream
+                                ("/com/kass/vocalanalysistool/vocal_analysis_icon.png"))));
 
                 Stage selectAudioFileControllerScene = (Stage) openFileButton.getScene().getWindow();
                 selectAudioFileControllerScene.close();
@@ -76,7 +83,7 @@ public class SelectAudioFileController {
         Stage exitStage = (Stage) exitButton.getScene().getWindow();
         exitStage.close();
     }
-
+//
 
 
 }
