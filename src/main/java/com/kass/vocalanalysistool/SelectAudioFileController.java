@@ -16,7 +16,7 @@ import javafx.scene.image.Image;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
-public class SelectAudioFileController {
+public class aSelectAudioFileController {
     Logger logger = Logger.getLogger("com.kass.vocalanalysistool" +
                         ".SelectAudioFileController");
     @FXML
