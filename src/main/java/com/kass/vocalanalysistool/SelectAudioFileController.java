@@ -49,10 +49,6 @@ public class SelectAudioFileController {
 
 
             //TODO::Create a python class that runs parslemouth
-            //add python class
-            //PythonAudioProcessor processor = new PythonAudioProcessor();
-            //String results = processor.process(path); [Method in processor that returns
-            // string]
 
             try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/kass" +
@@ -90,7 +86,11 @@ public class SelectAudioFileController {
         Stage exitStage = (Stage) exitButton.getScene().getWindow();
         exitStage.close();
     }
-//
+
+    private void runPythonScript(final String theFilePath) {
+        ProcessBuilder pb = new ProcessBuilder("dist/Vocal_Analysis_Script.exe", theFilePath);
+
+    }
 
 
 }
