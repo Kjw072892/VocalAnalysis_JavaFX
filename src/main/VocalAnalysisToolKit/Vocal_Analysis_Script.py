@@ -28,11 +28,11 @@ def output(f0_list, f1_list, f2_list, f3_list, f4_list, list_times:list[list[flo
     ax = fig.add_subplot(111)
     max_freqs = max(max(f0_list), max(f1_list), max(f2_list), max(f3_list), max(f4_list))
 
-    ax.plot(list_times[0], f1_list, label='Pitch', color='black')
-    ax.scatter(list_times[1], f1_list, label='F1', color="red")
-    ax.scatter(list_times[2], f2_list, label='F2', color="blue")
-    ax.scatter(list_times[3], f3_list, label='F3', color="orange")
-    ax.scatter(list_times[4], f4_list, label='F4', color="green")
+    ax.plot(list_times[0], f0_list, label='Pitch', color='black', linewidth=1.5)
+    ax.scatter(list_times[1], f1_list, label='F1', color="red", s=16)
+    ax.scatter(list_times[2], f2_list, label='F2', color="blue",s=16)
+    ax.scatter(list_times[3], f3_list, label='F3', color="orange",s=16)
+    ax.scatter(list_times[4], f4_list, label='F4', color="green",s=16)
 
     ax.set_xlabel("Time (sec)")
     ax.set_ylabel("Frequency (Hz)")
@@ -94,7 +94,7 @@ def output(f0_list, f1_list, f2_list, f3_list, f4_list, list_times:list[list[flo
     cursor.execute("""
                    INSERT INTO Vocal_Analysis (F0_list, F1_list, F2_list, F3_list, F4_list, Time, Plot)
                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                   (json.dumps(f1_list), json.dumps(f1_list), json.dumps(f2_list), json.dumps(f3_list), json.dumps(
+                   (json.dumps(f0_list), json.dumps(f1_list), json.dumps(f2_list), json.dumps(f3_list), json.dumps(
                        f4_list), json.dumps(list_times), plot_bytes))
 
     connect.commit()
@@ -136,10 +136,11 @@ def filter_frequency_synchronized(formant_: str, time_list: list[float], freqs: 
             prev_freq = freqs
             continue
         if formant_.casefold() == "f0":
-            if 60 < freqs < 335:
+            if 75 < freqs < 550:
                 temp_freq.append(freqs)
                 temp_time.append(time)
                 prev_freq = freqs
+
                 continue
         elif formant_.casefold() == "f1":
             if 250 <= freqs < 890:
@@ -154,13 +155,13 @@ def filter_frequency_synchronized(formant_: str, time_list: list[float], freqs: 
                 prev_freq = freqs
                 continue
         elif formant_.casefold() == "f3":
-            if 2000 < freqs < 3400:
+            if 1750 < freqs < 3600:
                 temp_freq.append(freqs)
                 temp_time.append(time)
                 prev_freq = freqs
                 continue
         elif formant_.casefold() == "f4":
-            if 2800 < freqs < 4500:
+            if 2850 < freqs < 4500:
                 temp_freq.append(freqs)
                 temp_time.append(time)
                 prev_freq = freqs
