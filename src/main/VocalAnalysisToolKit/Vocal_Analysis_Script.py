@@ -1,23 +1,16 @@
 import io
 import json
-
+import os.path
 import parselmouth
 import math
 import sys
 import sqlite3
 import numpy as np
-from matplotlib.backend_tools import cursors
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
 from matplotlib.figure import Figure
 
 FILE_PATH = None  # Global so it can be used by the rest of your script
 
-# Formant lists
-F0_LIST = None
-F1_LIST = None
-F2_LIST = None
-F3_LIST = None
-F4_LIST = None
 
 
 """
@@ -28,17 +21,18 @@ list[float] [f0, f1, f2, f3, f4]
 """
 
 
-def output(list_times:list[list[float]]):
-    global F0_LIST, F1_LIST, F2_LIST, F3_LIST, F4_LIST
+def output(f0_list, f1_list, f2_list, f3_list, f4_list, list_times:list[list[float]]):
+
+
     fig = Figure(figsize=(6, 12), dpi=100)
     ax = fig.add_subplot(111)
-    max_freqs = max(max(F0_LIST), max(F1_LIST), max(F2_LIST), max(F3_LIST), max(F4_LIST))
+    max_freqs = max(max(f0_list), max(f1_list), max(f2_list), max(f3_list), max(f4_list))
 
-    ax.plot(list_times[0], F0_LIST, label='Pitch', color='black')
-    ax.scatter(list_times[1], F1_LIST, label='F1', color="red")
-    ax.scatter(list_times[2], F2_LIST, label='F2', color="blue")
-    ax.scatter(list_times[3], F3_LIST, label='F3', color="orange")
-    ax.scatter(list_times[4], F4_LIST, label='F4', color="green")
+    ax.plot(list_times[0], f1_list, label='Pitch', color='black')
+    ax.scatter(list_times[1], f1_list, label='F1', color="red")
+    ax.scatter(list_times[2], f2_list, label='F2', color="blue")
+    ax.scatter(list_times[3], f3_list, label='F3', color="orange")
+    ax.scatter(list_times[4], f4_list, label='F4', color="green")
 
     ax.set_xlabel("Time (sec)")
     ax.set_ylabel("Frequency (Hz)")
@@ -52,8 +46,8 @@ def output(list_times:list[list[float]]):
     plot_bytes = buf.getvalue()
     buf.close()
 
-
-    connect = sqlite3.connect("Vocal_Analysis.db")
+    db_path = os.path.join(os.path.dirname(sys.argv[0]), "Vocal_Analysis.sqlite")
+    connect = sqlite3.connect(db_path)
     cursor = connect.cursor()
 
     cursor.execute("""
@@ -99,9 +93,12 @@ def output(list_times:list[list[float]]):
     # insert into database
     cursor.execute("""
                    INSERT INTO Vocal_Analysis (F0_list, F1_list, F2_list, F3_list, F4_list, Time, Plot)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
-                   (json.dumps(F0_LIST), json.dumps(F1_LIST), json.dumps(F2_LIST), json.dumps(F3_LIST), json.dumps(
-                       F4_LIST), json.dumps(list_times), plot_bytes))
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                   (json.dumps(f1_list), json.dumps(f1_list), json.dumps(f2_list), json.dumps(f3_list), json.dumps(
+                       f4_list), json.dumps(list_times), plot_bytes))
+
+    connect.commit()
+    connect.close()
 
 
 """
@@ -262,77 +259,88 @@ def get_file_path(the_file_path: str):
     FILE_PATH = the_file_path
 
 
-if FILE_PATH:
-    sound = parselmouth.Sound(FILE_PATH)
-    formant = sound.to_formant_burg(time_step=0.01)
-    pitch = sound.to_pitch(time_step=0.01)
 
-    times = np.arange(0, sound.get_total_duration(), .01)
-
-    f0_dict = {}
-    f1_dict = {}
-    f2_dict = {}
-    f3_dict = {}
-    f4_dict = {}
-
-    # Initializes the formant and pitch
-    for t in times:
-        F0_LIST = pitch.get_value_at_time(t)
-        F1_LIST = formant.get_value_at_time(1, t)
-        F2_LIST = formant.get_value_at_time(2, t)
-        F3_LIST = formant.get_value_at_time(3, t)
-        F4_LIST = formant.get_value_at_time(4, t)
-
-        if (not math.isnan(F0_LIST) and not math.isnan(F1_LIST) and not math.isnan(F2_LIST)
-                and not math.isnan(F3_LIST) and not math.isnan(F4_LIST)):
-            f0_dict[float(t)] = F0_LIST
-            f1_dict[float(t)] = F1_LIST
-            f2_dict[float(t)] = F2_LIST
-            f3_dict[float(t)] = F3_LIST
-            f4_dict[float(t)] = F4_LIST
-
-    times = sorted(f1_dict.keys())
-
-    f0_vals_arr = [round(f0_dict[t], 0) for t in times]
-    f1_vals_arr = [round(f1_dict[t], 0) for t in times]
-    f2_vals_arr = [round(f2_dict[t], 0) for t in times]
-    f3_vals_arr = [round(f3_dict[t], 0) for t in times]
-    f4_vals_arr = [round(f4_dict[t], 0) for t in times]
-
-    # Filters out all the frequency anomalies
-    times_f0, f0_vals_arr = filter_frequency_synchronized("F0", times, f0_vals_arr)
-    times_f1, f1_vals_arr = filter_frequency_synchronized("F1", times, f1_vals_arr)
-    times_f2, f2_vals_arr = filter_frequency_synchronized("F2", times, f2_vals_arr)
-    times_f3, f3_vals_arr = filter_frequency_synchronized("F3", times, f3_vals_arr)
-    times_f4, f4_vals_arr = filter_frequency_synchronized("F4", times, f4_vals_arr)
-
-    f0_average = get_freq_average(f0_vals_arr)
-    f1_average = get_freq_average(f1_vals_arr)
-    f2_average = get_freq_average(f2_vals_arr)
-    f3_average = get_freq_average(f3_vals_arr)
-    f4_average = get_freq_average(f4_vals_arr)
-
-    # Get the lowest and highest frequencies
-    f0_low, f0_high = get_low(f0_vals_arr, "f0".casefold()), get_high(f0_vals_arr, "f0".casefold())
-    f1_low, f1_high = get_low(f1_vals_arr, "f1".casefold()), get_high(f1_vals_arr, "f1".casefold())
-    f2_low, f2_high = get_low(f2_vals_arr, "f2".casefold()), get_high(f2_vals_arr, "f2".casefold())
-    f3_low, f3_high = get_low(f3_vals_arr, "f3".casefold()), get_high(f3_vals_arr, "f3".casefold())
-    f4_low, f4_high = get_low(f4_vals_arr, "f4".casefold()), get_high(f4_vals_arr, "f4".casefold())
 
 
 def main():
     # sys.argv[0] is the script name
     # sys.argv[1] is the argument from java
     try:
-        global FILE_PATH, F0_LIST, F1_LIST, F2_LIST, F3_LIST, F4_LIST
+        global FILE_PATH
+        print("Script Initialized")
 
-        FILE_PATH = sys.argv[1:]
+        FILE_PATH = sys.argv[1]
 
-        F0_LIST = f0_vals_arr
+        if FILE_PATH:
+            sound = parselmouth.Sound(FILE_PATH)
+            formant = sound.to_formant_burg(time_step=0.01)
+            pitch = sound.to_pitch(time_step=0.01)
 
-        times_list = [times_f0,times_f1,times_f2,times_f3,times_f4]
+            times = np.arange(0, sound.get_total_duration(), .01)
+            f0_dict = {}
+            f1_dict = {}
+            f2_dict = {}
+            f3_dict = {}
+            f4_dict = {}
 
-        output(times_list)
+            # Initializes the formant and pitch
+            for t in times:
+                f0_list = pitch.get_value_at_time(t)
+                f1_list = formant.get_value_at_time(1, t)
+                f2_list = formant.get_value_at_time(2, t)
+                f3_list = formant.get_value_at_time(3, t)
+                f4_list = formant.get_value_at_time(4, t)
+
+                if (not math.isnan(f0_list) and not math.isnan(f1_list) and not math.isnan(f2_list)
+                        and not math.isnan(f3_list) and not math.isnan(f4_list)):
+                    f0_dict[float(t)] = f0_list
+                    f1_dict[float(t)] = f1_list
+                    f2_dict[float(t)] = f2_list
+                    f3_dict[float(t)] = f3_list
+                    f4_dict[float(t)] = f4_list
+
+            times = list(f1_dict.keys())
+
+            f0_vals_arr = [round(f0_dict[t], 0) for t in times]
+            f1_vals_arr = [round(f1_dict[t], 0) for t in times]
+            f2_vals_arr = [round(f2_dict[t], 0) for t in times]
+            f3_vals_arr = [round(f3_dict[t], 0) for t in times]
+            f4_vals_arr = [round(f4_dict[t], 0) for t in times]
+
+            # Filters out all the frequency anomalies
+            times_f0, f0_vals_arr = filter_frequency_synchronized("F0", times, f0_vals_arr)
+            times_f1, f1_vals_arr = filter_frequency_synchronized("F1", times, f1_vals_arr)
+            times_f2, f2_vals_arr = filter_frequency_synchronized("F2", times, f2_vals_arr)
+            times_f3, f3_vals_arr = filter_frequency_synchronized("F3", times, f3_vals_arr)
+            times_f4, f4_vals_arr = filter_frequency_synchronized("F4", times, f4_vals_arr)
+
+            # Get the average frequency for each formant
+            f0_average = get_freq_average(f0_vals_arr)
+            f1_average = get_freq_average(f1_vals_arr)
+            f2_average = get_freq_average(f2_vals_arr)
+            f3_average = get_freq_average(f3_vals_arr)
+            f4_average = get_freq_average(f4_vals_arr)
+
+            # Get the lowest and highest frequencies
+            f0_low, f0_high = get_low(f0_vals_arr, "f0".casefold()), get_high(f0_vals_arr, "f0".casefold())
+            f1_low, f1_high = get_low(f1_vals_arr, "f1".casefold()), get_high(f1_vals_arr, "f1".casefold())
+            f2_low, f2_high = get_low(f2_vals_arr, "f2".casefold()), get_high(f2_vals_arr, "f2".casefold())
+            f3_low, f3_high = get_low(f3_vals_arr, "f3".casefold()), get_high(f3_vals_arr, "f3".casefold())
+            f4_low, f4_high = get_low(f4_vals_arr, "f4".casefold()), get_high(f4_vals_arr, "f4".casefold())
+
+            f0_list = f0_vals_arr
+            f1_list = f1_vals_arr
+            f2_list = f2_vals_arr
+            f3_list = f3_vals_arr
+            f4_list = f4_vals_arr
+
+            times_list = [times_f0,times_f1,times_f2,times_f3,times_f4]
+
+            output(f0_list,f1_list, f2_list, f3_list, f4_list, times_list)
+
+            db_path = os.path.join(os.path.dirname(sys.argv[0]), "Vocal_Analysis.sqlite")
+
+            print("writing to: ", db_path)
 
     except NameError:
         print("No File Selected")

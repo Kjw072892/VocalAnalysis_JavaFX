@@ -1,8 +1,10 @@
 package com.kass.vocalanalysistool;
 
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -32,7 +34,7 @@ public class SelectAudioFileController {
     }
 
     @FXML
-    private void handleOpenFile() {
+    private void handleOpenFile() throws IOException {
 
         logger.setLevel(Level.INFO);
 
@@ -49,6 +51,7 @@ public class SelectAudioFileController {
 
 
             //TODO::Create a python class that runs parslemouth
+            runPythonScript(path);
 
             try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/kass" +
@@ -87,9 +90,24 @@ public class SelectAudioFileController {
         exitStage.close();
     }
 
-    private void runPythonScript(final String theFilePath) {
-        ProcessBuilder pb = new ProcessBuilder("dist/Vocal_Analysis_Script.exe", theFilePath);
+    private void runPythonScript(final String theFilePath) throws IOException {
+        try {
+            ProcessBuilder pb = new ProcessBuilder("dist/Vocal_Analysis_Script.exe", theFilePath);
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
 
+            // Read output
+            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                logger.info("[Python] " + line);
+            }
+
+            int exitCode = process.waitFor();
+            logger.info("Python process exited with code " + exitCode);
+        } catch (IOException | InterruptedException e) {
+            logger.log(Level.SEVERE, "Failed to run Python script", e);
+        }
     }
 
 
