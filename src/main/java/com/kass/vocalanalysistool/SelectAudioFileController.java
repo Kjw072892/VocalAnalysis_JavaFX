@@ -15,10 +15,11 @@ import javafx.scene.control.Button;
 import javafx.scene.image.Image;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import javafx.stage.Window;
 
-public class aSelectAudioFileController {
-    Logger logger = Logger.getLogger("com.kass.vocalanalysistool" +
-                        ".SelectAudioFileController");
+public class SelectAudioFileController {
+    Logger logger = Logger.getLogger(this.getClass().getName());
+
     @FXML
     private Button openFileButton;
 
@@ -32,18 +33,24 @@ public class aSelectAudioFileController {
 
     @FXML
     private void handleOpenFile() {
+
+        logger.setLevel(Level.INFO);
+
         FileChooser fileChooser = new FileChooser();
 
         fileChooser.setTitle("Select Audio File");
 
-        File file = fileChooser.showOpenDialog(null);
+        File file = fileChooser.showOpenDialog(openFileButton.getScene().getWindow());
 
         if (file != null) {
-             String path = file.getAbsolutePath();
+            String path = file.getAbsolutePath();
 
-             //TODO::Create a python class that runs parslemouth
-              //add python class
-             //PythonAudioProcessor processor = new PythonAudioProcessor();
+            logger.info(() -> "Path: " + path);
+
+
+            //TODO::Create a python class that runs parslemouth
+            //add python class
+            //PythonAudioProcessor processor = new PythonAudioProcessor();
             //String results = processor.process(path); [Method in processor that returns
             // string]
 

@@ -7,12 +7,12 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="VocalAnalysisTool (1)" />
+        <module name="VocalAnalysisTool" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
       <module name="vocal-analysis" target="17" />
       <module name="VocalAnalysis_JavaFX" target="17" />
-      <module name="VocalAnalysisTool" target="21" />
     </bytecodeTargetLevel>
   </component>
 </project>
