@@ -5,6 +5,7 @@ import parselmouth
 import math
 import sys
 import sqlite3
+import datetime as dt
 import numpy as np
 
 from matplotlib.figure import Figure
@@ -23,6 +24,7 @@ list[float] [f0, f1, f2, f3, f4]
 
 def output(f0_list, f1_list, f2_list, f3_list, f4_list, list_times:list[list[float]]):
 
+    date_time = dt.datetime.now().strftime("%Y%m%d%H%M%S")
 
     fig = Figure(figsize=(6, 12), dpi=100)
     ax = fig.add_subplot(111)
@@ -53,49 +55,23 @@ def output(f0_list, f1_list, f2_list, f3_list, f4_list, list_times:list[list[flo
     cursor.execute("""
                    CREATE TABLE IF NOT EXISTS Vocal_Analysis
                    (
-                       id
-                       INTEGER
-                       PRIMARY
-                       KEY
-                       AUTOINCREMENT,
-                       F0_list
-                       TEXT
-                       NOT
-                       NULL,
-                       F1_list
-                       TEXT
-                       NOT
-                       NULL,
-                       F2_list
-                       TEXT
-                       NOT
-                       NULL,
-                       F3_list
-                       TEXT
-                       NOT
-                       NULL,
-                       F4_list
-                       TEXT
-                       NOT
-                       NULL,
-                       Time
-                       TEXT
-                       NOT
-                       NULL,
-                       Plot
-                       BLOB
-                       NOT
-                       NULL
+                       dt TEXT PRIMARY KEY,
+                       F0_list TEXT NOT NULL,
+                       F1_list TEXT NOT NULL,
+                       F2_list TEXT NOT NULL,
+                       F3_list TEXT NOT NULL,
+                       F4_list TEXT NOT NULL,
+                       Time TEXT NOT NULL,
+                       Plot BLOB NOT NULL
                    );
                    """)
 
 
     # insert into database
     cursor.execute("""
-                   INSERT INTO Vocal_Analysis (F0_list, F1_list, F2_list, F3_list, F4_list, Time, Plot)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                   (json.dumps(f0_list), json.dumps(f1_list), json.dumps(f2_list), json.dumps(f3_list), json.dumps(
-                       f4_list), json.dumps(list_times), plot_bytes))
+                   INSERT INTO Vocal_Analysis (dt, F0_list, F1_list, F2_list, F3_list, F4_list, Time, Plot)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                   (date_time, json.dumps(f0_list), json.dumps(f1_list), json.dumps(f2_list), json.dumps(f3_list),json.dumps(f4_list), json.dumps(list_times), plot_bytes))
 
     connect.commit()
     connect.close()

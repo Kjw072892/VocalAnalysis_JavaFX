@@ -62,12 +62,12 @@ public class SelectAudioFileController {
                 AudioDataController dataController = loader.getController();
                 //dataController.setResults(results);
 
-                Stage audioDataControllerStage = new Stage();
-                audioDataControllerStage.setTitle("Analysis Results");
-                audioDataControllerStage.setScene(new Scene(root));
-                audioDataControllerStage.show();
-                audioDataControllerStage.setResizable(false);
-                audioDataControllerStage.getIcons().add(new Image(Objects.requireNonNull
+                Stage audioDataController = new Stage();
+                audioDataController.setTitle("Analysis Results");
+                audioDataController.setScene(new Scene(root));
+                audioDataController.show();
+                audioDataController.setResizable(false);
+                audioDataController.getIcons().add(new Image(Objects.requireNonNull
                         (getClass().getResourceAsStream
                                 ("/com/kass/vocalanalysistool/vocal_analysis_icon.png"))));
 
