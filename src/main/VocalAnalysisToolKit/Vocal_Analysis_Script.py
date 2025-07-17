@@ -5,6 +5,7 @@ import parselmouth
 import math
 import sys
 import sqlite3
+
 import datetime as dt
 import numpy as np
 
@@ -14,27 +15,33 @@ FILE_PATH = None  # Global so it can be used by the rest of your script
 
 
 
+
+"""
+Transcribing the users audio using openai-whisper to then be used to create a TextGrid to extract the users vowel 
+frequencies.
+"""
+
+
+
+
 """
 Output the collected data for easy use
 
 The first list added will be designated as F0, the second F1 and so on
 list[float] [f0, f1, f2, f3, f4]
 """
-
-
-def output(f0_list, f1_list, f2_list, f3_list, f4_list, list_times:list[list[float]]):
-
+def output(f0_list, f1_list, f2_list, f3_list, f4_list, list_times: list[list[float]]):
     date_time = dt.datetime.now().strftime("%Y%m%d%H%M%S")
 
     fig = Figure(figsize=(6, 12), dpi=100)
     ax = fig.add_subplot(111)
     max_freqs = max(max(f0_list), max(f1_list), max(f2_list), max(f3_list), max(f4_list))
 
-    ax.plot(list_times[0], f0_list, label='Pitch', color='black', linewidth=1.5)
-    ax.scatter(list_times[1], f1_list, label='F1', color="red", s=16)
-    ax.scatter(list_times[2], f2_list, label='F2', color="blue",s=16)
-    ax.scatter(list_times[3], f3_list, label='F3', color="orange",s=16)
-    ax.scatter(list_times[4], f4_list, label='F4', color="green",s=16)
+    ax.plot(list_times[0], f0_list, label='Pitch', color='black', linewidth=1)
+    ax.scatter(list_times[1], f1_list, label='F1', color="red", s=8)
+    ax.scatter(list_times[2], f2_list, label='F2', color="blue", s=8)
+    ax.scatter(list_times[3], f3_list, label='F3', color="orange", s=8)
+    ax.scatter(list_times[4], f4_list, label='F4', color="green", s=8)
 
     ax.set_xlabel("Time (sec)")
     ax.set_ylabel("Frequency (Hz)")
@@ -55,23 +62,47 @@ def output(f0_list, f1_list, f2_list, f3_list, f4_list, list_times:list[list[flo
     cursor.execute("""
                    CREATE TABLE IF NOT EXISTS Vocal_Analysis
                    (
-                       dt TEXT PRIMARY KEY,
-                       F0_list TEXT NOT NULL,
-                       F1_list TEXT NOT NULL,
-                       F2_list TEXT NOT NULL,
-                       F3_list TEXT NOT NULL,
-                       F4_list TEXT NOT NULL,
-                       Time TEXT NOT NULL,
-                       Plot BLOB NOT NULL
+                       dt
+                       TEXT
+                       PRIMARY
+                       KEY,
+                       F0_list
+                       TEXT
+                       NOT
+                       NULL,
+                       F1_list
+                       TEXT
+                       NOT
+                       NULL,
+                       F2_list
+                       TEXT
+                       NOT
+                       NULL,
+                       F3_list
+                       TEXT
+                       NOT
+                       NULL,
+                       F4_list
+                       TEXT
+                       NOT
+                       NULL,
+                       Time
+                       TEXT
+                       NOT
+                       NULL,
+                       Plot
+                       BLOB
+                       NOT
+                       NULL
                    );
                    """)
-
 
     # insert into database
     cursor.execute("""
                    INSERT INTO Vocal_Analysis (dt, F0_list, F1_list, F2_list, F3_list, F4_list, Time, Plot)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                   (date_time, json.dumps(f0_list), json.dumps(f1_list), json.dumps(f2_list), json.dumps(f3_list),json.dumps(f4_list), json.dumps(list_times), plot_bytes))
+                   (date_time, json.dumps(f0_list), json.dumps(f1_list), json.dumps(f2_list), json.dumps(f3_list),
+                    json.dumps(f4_list), json.dumps(list_times), plot_bytes))
 
     connect.commit()
     connect.close()
@@ -87,66 +118,32 @@ returns: tuple with the new synchronized time stamp and a list of the filtered f
 """
 
 
-def filter_frequency_synchronized(formant_: str, time_list: list[float], freqs: list[float]) -> tuple[
+def filter_frequency_synchronized(time_list: list[float], freqs: list[float]) -> tuple[
     list[float], list[float]]:
-    # First Filter
-    new_times = []
-    new_freq = []
 
-    for time, freqs in zip(time_list, freqs):
+    valid_pairs = [(t, f) for t, f in zip(time_list, freqs) if f > 0]
+    if not valid_pairs:
+        return [], []
 
-        if freqs > 0:
-            new_times.append(time)
-            new_freq.append(freqs)
+    times, values = zip(*valid_pairs)
 
-    # Second Filter low/high pass filter
+    sorted_values = sorted(values)
+    q1 = sorted_values[int(0.25 * len(sorted_values))]
+    q3 = sorted_values[int(0.75 * len(sorted_values))]
+    iqr = q3 - q1
 
-    prev_freq = 0
+    lower_bound = q1 - 1.75 * iqr
+    upper_bound = q3 + 1.75 * iqr
 
-    temp_freq = []
-    temp_time = []
+    filtered_times = []
+    filtered_freqs = []
 
-    for time, freqs in zip(new_times, new_freq):
+    for t, f in zip(times, values):
+        if lower_bound <= f <= upper_bound:
+            filtered_times.append(t)
+            filtered_freqs.append(f)
 
-        if prev_freq == 0:
-            prev_freq = freqs
-            continue
-        if formant_.casefold() == "f0":
-            if 75 < freqs < 550:
-                temp_freq.append(freqs)
-                temp_time.append(time)
-                prev_freq = freqs
-
-                continue
-        elif formant_.casefold() == "f1":
-            if 250 <= freqs < 890:
-                temp_freq.append(freqs)
-                temp_time.append(time)
-                prev_freq = freqs
-                continue
-        elif formant_.casefold() == "f2":
-            if 800 <= freqs < 2800:
-                temp_freq.append(freqs)
-                temp_time.append(time)
-                prev_freq = freqs
-                continue
-        elif formant_.casefold() == "f3":
-            if 1750 < freqs < 3600:
-                temp_freq.append(freqs)
-                temp_time.append(time)
-                prev_freq = freqs
-                continue
-        elif formant_.casefold() == "f4":
-            if 2850 < freqs < 4500:
-                temp_freq.append(freqs)
-                temp_time.append(time)
-                prev_freq = freqs
-                continue
-
-    new_times = temp_time
-    new_freq = temp_freq
-
-    return new_times, new_freq
+    return filtered_times, filtered_freqs
 
 
 """
@@ -236,9 +233,6 @@ def get_file_path(the_file_path: str):
     FILE_PATH = the_file_path
 
 
-
-
-
 def main():
     # sys.argv[0] is the script name
     # sys.argv[1] is the argument from java
@@ -285,11 +279,11 @@ def main():
             f4_vals_arr = [round(f4_dict[t], 0) for t in times]
 
             # Filters out all the frequency anomalies
-            times_f0, f0_vals_arr = filter_frequency_synchronized("F0", times, f0_vals_arr)
-            times_f1, f1_vals_arr = filter_frequency_synchronized("F1", times, f1_vals_arr)
-            times_f2, f2_vals_arr = filter_frequency_synchronized("F2", times, f2_vals_arr)
-            times_f3, f3_vals_arr = filter_frequency_synchronized("F3", times, f3_vals_arr)
-            times_f4, f4_vals_arr = filter_frequency_synchronized("F4", times, f4_vals_arr)
+            times_f0, f0_vals_arr = filter_frequency_synchronized(times, f0_vals_arr)
+            times_f1, f1_vals_arr = filter_frequency_synchronized(times, f1_vals_arr)
+            times_f2, f2_vals_arr = filter_frequency_synchronized(times, f2_vals_arr)
+            times_f3, f3_vals_arr = filter_frequency_synchronized(times, f3_vals_arr)
+            times_f4, f4_vals_arr = filter_frequency_synchronized(times, f4_vals_arr)
 
             # Get the average frequency for each formant
             f0_average = get_freq_average(f0_vals_arr)
@@ -311,9 +305,9 @@ def main():
             f3_list = f3_vals_arr
             f4_list = f4_vals_arr
 
-            times_list = [times_f0,times_f1,times_f2,times_f3,times_f4]
+            times_list = [times_f0, times_f1, times_f2, times_f3, times_f4]
 
-            output(f0_list,f1_list, f2_list, f3_list, f4_list, times_list)
+            output(f0_list, f1_list, f2_list, f3_list, f4_list, times_list)
 
             db_path = os.path.join(os.path.dirname(sys.argv[0]), "Vocal_Analysis.sqlite")
 

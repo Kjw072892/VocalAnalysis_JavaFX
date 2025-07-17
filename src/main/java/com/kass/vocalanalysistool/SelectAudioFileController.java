@@ -49,8 +49,6 @@ public class SelectAudioFileController {
 
             logger.info(() -> "Path: " + path);
 
-
-            //TODO::Create a python class that runs parslemouth
             runPythonScript(path);
 
             try {
