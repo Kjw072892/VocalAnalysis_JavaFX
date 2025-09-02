@@ -1,4 +1,4 @@
-package com.kass.vocalanalysistool;
+package com.kass.vocalanalysistool.controller;
 
 import java.util.Objects;
 import javafx.application.Application;
@@ -13,7 +13,7 @@ public class Main extends Application {
     @Override
     public void start(Stage stage) throws IOException {
         FXMLLoader fxmlLoader = new FXMLLoader(Main.class.getResource(
-                "SelectAudioFile.fxml"));
+                "/com/kass/vocalanalysistool/SelectAudioFile.fxml"));
 
         Scene scene = new Scene(fxmlLoader.load(), 453, 400);
         stage.setTitle("Select Audio File");
@@ -28,4 +28,4 @@ public class Main extends Application {
     public static void main(String[] args) {
         launch();
     }
-}1
+}
