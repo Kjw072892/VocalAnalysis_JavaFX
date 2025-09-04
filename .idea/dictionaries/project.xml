@@ -1,15 +1,36 @@
 <component name="ProjectDictionaryState">
   <dictionary name="project">
     <words>
+      <w>allusers</w>
+      <w>delims</w>
+      <w>enabledelayedexpansion</w>
+      <w>errorlevel</w>
       <w>ffplay</w>
+      <w>formants</w>
       <w>freqs</w>
       <w>hiddenimports</w>
       <w>hooksconfig</w>
       <w>hookspath</w>
+      <w>ignoreversion</w>
+      <w>mplbackend</w>
+      <w>nanfilter</w>
       <w>noarchive</w>
+      <w>oldhash</w>
       <w>parslemouth</w>
       <w>pathex</w>
+      <w>pcep</w>
+      <w>pkgutil</w>
+      <w>postinstall</w>
+      <w>pythonhome</w>
+      <w>pythonioencoding</w>
+      <w>pythonpath</w>
+      <w>recursesubdirs</w>
+      <w>runhidden</w>
+      <w>setlocal</w>
+      <w>usebackq</w>
       <w>vocalanalysistool</w>
+      <w>waituntilterminated</w>
+      <w>yticks</w>
     </words>
   </dictionary>
 </component>

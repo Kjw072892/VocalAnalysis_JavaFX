@@ -7,8 +7,8 @@ module com.kass.vocalanalysistool {
     requires org.kordamp.bootstrapfx.core;
     requires java.logging;
 
-    opens com.kass.vocalanalysistool to javafx.fxml;
-    exports com.kass.vocalanalysistool;
+    opens com.kass.vocalanalysistool.view to javafx.fxml;
+    exports com.kass.vocalanalysistool.view;
     exports com.kass.vocalanalysistool.controller;
     opens com.kass.vocalanalysistool.controller to javafx.fxml;
 }

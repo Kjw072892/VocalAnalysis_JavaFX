@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.effect.DropShadow?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.shape.Rectangle?>
+<?import javafx.scene.text.Font?>
+
+<AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0"
+            prefWidth="453.0" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.kass.vocalanalysistool.view.SelectAudioFileController">
+
+   <!-- Background pane -->
+   <Pane prefHeight="400.0" prefWidth="453.0" style="-fx-border-radius: 0; -fx-border-color: #000000; -fx-border-width: 2; -fx-background-color: linear-gradient(to bottom, #92e7ff 0%, #ffb4fa 35%, #FFFFFF 100%);" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+
+       <!--Open File Button properties-->
+      <Button fx:id="openFileButton" alignment="CENTER" contentDisplay="RIGHT" layoutX="82.0" layoutY="316.0" mnemonicParsing="false" onAction="#handleOpenFile" prefHeight="36.0" prefWidth="102.0" style="-fx-background-color: #ffffff; -fx-border-color: #999; -fx-cursor: hand; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-width: 1; -fx-padding: 8 20; -fx-font-size: 13px; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 2, 0, 0, 1); -fx-text-fill: #000; -fx-font-weight: bold;" text="Open File">
+         <font>
+            <Font size="17.0" />
+         </font>
+         <effect>
+            <DropShadow height="19.05" radius="7.08" width="11.27" />
+         </effect>
+      </Button>
+
+       <!--Exit Button properties-->
+      <Button fx:id="exitButton" alignment="CENTER" contentDisplay="CENTER" layoutX="268.0" layoutY="316.0" mnemonicParsing="false" onAction="#handleExit" prefHeight="36.0" prefWidth="102.0" style="-fx-background-color: #ffffff; -fx-border-color: #999; -fx-cursor: hand; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-width: 1; -fx-padding: 8 20; -fx-font-size: 13px; -fx-text-fill: #000; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 2, 0, 0, 1); -fx-font-weight: bold;" text="Exit" textAlignment="CENTER">
+         <font>
+            <Font size="17.0" />
+         </font>
+         <effect>
+            <DropShadow height="19.05" radius="7.08" width="11.27" />
+         </effect>
+      </Button>
+      <Rectangle arcHeight="5.0" arcWidth="5.0" height="68.0" layoutX="265.0" layoutY="158.0" stroke="BLACK" strokeType="INSIDE" width="109.0" />
+      <Rectangle arcHeight="5.0" arcWidth="5.0" height="68.0" layoutX="76.0" layoutY="158.0" stroke="BLACK" strokeType="INSIDE" width="109.0" />
+
+       <!--Trans flag image-->
+      <ImageView fitHeight="61.0" fitWidth="102.0" layoutX="79.0" layoutY="161.0">
+         <Image url="@../icons/trans_flag.png" />
+      </ImageView>
+
+       <!--Pride flag image-->
+      <ImageView fitHeight="61.0" fitWidth="102.0" layoutX="268.0" layoutY="161.0">
+         <Image url="@../icons/pride_flag.png" />
+      </ImageView>
+
+      <!--Label asking to select audio file-->
+      <Label alignment="CENTER" contentDisplay="CENTER" layoutX="120.0" layoutY="261.0" prefHeight="38.0" prefWidth="222.0" text="Please Select Your Audio File" textAlignment="CENTER">
+         <font>
+            <Font name="Calibri Italic" size="18.0" />
+         </font>
+      </Label>
+      <Label layoutX="79.0" prefHeight="131.0" prefWidth="305.0" text="Vocal Analysis">
+         <font>
+            <Font name="SansSerif Bold" size="43.0" />
+         </font>
+      </Label>
+      <Label layoutX="20.0" layoutY="85.0" prefHeight="61.0" prefWidth="413.0" text="Gender &amp; Resonance Insights">
+         <font>
+            <Font name="SansSerif Bold" size="29.0" />
+         </font>
+      </Label>
+   </Pane>
+</AnchorPane>
