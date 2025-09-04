@@ -23,6 +23,7 @@ public class Main extends Application {
                 "/com/kass/vocalanalysistool/icons/vocal_analysis_icon.png"))));
 
         stage.show();
+
     }
 
     public static void main(String[] args) {

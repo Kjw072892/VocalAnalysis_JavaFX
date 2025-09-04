@@ -17,7 +17,7 @@
    <Pane prefHeight="400.0" prefWidth="453.0" style="-fx-border-radius: 0; -fx-border-color: #000000; -fx-border-width: 2; -fx-background-color: linear-gradient(to bottom, #92e7ff 0%, #ffb4fa 35%, #FFFFFF 100%);" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
 
        <!--Open File Button properties-->
-      <Button fx:id="openFileButton" alignment="CENTER" contentDisplay="RIGHT" layoutX="82.0" layoutY="316.0" mnemonicParsing="false" onAction="#handleOpenFile" prefHeight="36.0" prefWidth="102.0" style="-fx-background-color: #ffffff; -fx-border-color: #999; -fx-cursor: hand; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-width: 1; -fx-padding: 8 20; -fx-font-size: 13px; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 2, 0, 0, 1); -fx-text-fill: #000; -fx-font-weight: bold;" text="Open File">
+      <Button fx:id="myOpenFileButton" alignment="CENTER" contentDisplay="RIGHT" layoutX="82.0" layoutY="316.0" mnemonicParsing="false" onAction="#handleOpenFile" prefHeight="36.0" prefWidth="102.0" style="-fx-background-color: #ffffff; -fx-border-color: #999; -fx-cursor: hand; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-width: 1; -fx-padding: 8 20; -fx-font-size: 13px; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 2, 0, 0, 1); -fx-text-fill: #000; -fx-font-weight: bold;" text="Open File">
          <font>
             <Font size="17.0" />
          </font>
@@ -27,7 +27,7 @@
       </Button>
 
        <!--Exit Button properties-->
-      <Button fx:id="exitButton" alignment="CENTER" contentDisplay="CENTER" layoutX="268.0" layoutY="316.0" mnemonicParsing="false" onAction="#handleExit" prefHeight="36.0" prefWidth="102.0" style="-fx-background-color: #ffffff; -fx-border-color: #999; -fx-cursor: hand; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-width: 1; -fx-padding: 8 20; -fx-font-size: 13px; -fx-text-fill: #000; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 2, 0, 0, 1); -fx-font-weight: bold;" text="Exit" textAlignment="CENTER">
+      <Button fx:id="myExitButton" alignment="CENTER" contentDisplay="CENTER" layoutX="268.0" layoutY="316.0" mnemonicParsing="false" onAction="#handleExit" prefHeight="36.0" prefWidth="102.0" style="-fx-background-color: #ffffff; -fx-border-color: #999; -fx-cursor: hand; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-width: 1; -fx-padding: 8 20; -fx-font-size: 13px; -fx-text-fill: #000; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 2, 0, 0, 1); -fx-font-weight: bold;" text="Exit" textAlignment="CENTER">
          <font>
             <Font size="17.0" />
          </font>

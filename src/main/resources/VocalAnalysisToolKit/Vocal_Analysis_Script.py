@@ -1,7 +1,11 @@
 import io
 import json
 import math
+import os
+import shutil
+import subprocess
 import sys
+import tempfile
 from sqlite3 import Binary
 import matplotlib
 
@@ -332,6 +336,46 @@ def insert_to_table(time_0, f0_, time_1, f1_, time_2, f2_, time_3, f3_, time_4, 
 
 
 """
+Converts incompatible audio files into a .wav file format for parslemouth.
+"""
+
+def _resolve_ffmpeg() -> str:
+    cand = os.environ.get("FFMPEG_EXE") or shutil.which("ffmpeg") or shutil.which("ffmpeg.exe")
+    if not cand:
+        raise RuntimeError(
+            "ffmpeg not found. Install it and add to PATH, or set FFMPEG_EXE to the full path of ffmpeg.exe."
+        )
+    cand = cand.strip().strip('"')  # strip accidental surrounding quotes
+    if os.path.isdir(cand):
+        cand = os.path.join(cand, "ffmpeg.exe")
+    if not os.path.isfile(cand):
+        raise RuntimeError(f"ffmpeg.exe not found at: {cand!r}")
+    return cand
+
+def ensure_wav(src_path: str, *, sample_rate: int = 44100) -> tuple[str, bool]:
+    if src_path.lower().endswith(".wav"):
+        return src_path, False
+    ffmpeg = _resolve_ffmpeg()
+    tmp = tempfile.NamedTemporaryFile(prefix="vat_", suffix=".wav", delete=False)
+    tmp_path = tmp.name
+    tmp.close()
+    cmd = [
+        ffmpeg, "-y",
+        "-hide_banner", "-loglevel", "error",
+        "-i", src_path,
+        "-vn",
+        "-ac", "1",
+        "-ar", str(sample_rate),
+        "-sample_fmt", "s16",
+        tmp_path,
+    ]
+    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    if res.returncode != 0:
+        raise RuntimeError(f"ffmpeg failed ({res.returncode}):\n{res.stdout}")
+    return tmp_path, True
+
+
+"""
 Collects the vocal analysis data from the users vocal recording.
 """
 
@@ -343,64 +387,71 @@ def main():
         global FILE_PATH
         FILE_PATH = sys.argv[1]
         if FILE_PATH:
-            sound = parselmouth.Sound(FILE_PATH)
-            metrics = extract_breathiness_and_intonation(
-                sound,
-                time_step=0.005,
-                pitch_floor=60.0,
-                pitch_ceiling=500.0  # keep high to cover feminine ranges
-            )
-            print(metrics)
+            wav_path, _tmp = ensure_wav(FILE_PATH)
+            try:
+                sound = parselmouth.Sound(wav_path)
+                metrics = extract_breathiness_and_intonation(
+                    sound,
+                    time_step=0.005,
+                    pitch_floor=60.0,
+                    pitch_ceiling=500.0  # keep high to cover feminine ranges
+                )
+                print(metrics)
 
-            formant = sound.to_formant_burg(time_step=0.01)
-            pitch = sound.to_pitch(time_step=0.01)
-            times = np.arange(0, sound.get_total_duration(), .01)
-            f0_dict = {}
-            f1_dict = {}
-            f2_dict = {}
-            f3_dict = {}
-            f4_dict = {}
-            # Initializes the formant and pitch
-            for t in times:
-                f0 = pitch.get_value_at_time(t)
-                f1 = formant.get_value_at_time(1, t)
-                f2 = formant.get_value_at_time(2, t)
-                f3 = formant.get_value_at_time(3, t)
-                f4 = formant.get_value_at_time(4, t)
-                if (not math.isnan(f0) and not math.isnan(f1) and not math.isnan(f2) and not math.isnan(f3)
-                        and not math.isnan(f4)):
-                    f0_dict[float(t)] = f0
-                    f1_dict[float(t)] = f1
-                    f2_dict[float(t)] = f2
-                    f3_dict[float(t)] = f3
-                    f4_dict[float(t)] = f4
-            times = sorted(f1_dict.keys())
-            # Rounds the formant up to the nearest integer and stores data in a list
-            f0_vals_arr = [round(f0_dict[t], 0) for t in times]
-            f1_vals_arr = [round(f1_dict[t], 0) for t in times]
-            f2_vals_arr = [round(f2_dict[t], 0) for t in times]
-            f3_vals_arr = [round(f3_dict[t], 0) for t in times]
-            f4_vals_arr = [round(f4_dict[t], 0) for t in times]
-            # Filters out all the frequency anomalies
-            times_f0, f0_vals_arr = filter_frequency_synchronized("F0", times, f0_vals_arr)
-            times_f1, f1_vals_arr = filter_frequency_synchronized("F1", times, f1_vals_arr)
-            times_f2, f2_vals_arr = filter_frequency_synchronized("F2", times, f2_vals_arr)
-            times_f3, f3_vals_arr = filter_frequency_synchronized("F3", times, f3_vals_arr)
-            times_f4, f4_vals_arr = filter_frequency_synchronized("F4", times, f4_vals_arr)
-            # Gets the average formants
-            f0_average = get_freq_average(f0_vals_arr)
-            f1_average = get_freq_average(f1_vals_arr)
-            f2_average = get_freq_average(f2_vals_arr)
-            f3_average = get_freq_average(f3_vals_arr)
-            f4_average = get_freq_average(f4_vals_arr)
-            # Crates a list of averages where i = 0 is f0_average and i = 4 is f4_average
-            avg_formants = [f0_average, f1_average, f2_average, f3_average, f4_average]
-            # Connects to the sqlite db
-            connect_table()
-            # Inserts the formant data into the sqlite3 database
-            insert_to_table(times_f0, f0_vals_arr, times_f1, f1_vals_arr, times_f2, f2_vals_arr,
-                            times_f3, f3_vals_arr, times_f4, f4_vals_arr, avg_formants)
-
+                formant = sound.to_formant_burg(time_step=0.01)
+                pitch = sound.to_pitch(time_step=0.01)
+                times = np.arange(0, sound.get_total_duration(), .01)
+                f0_dict = {}
+                f1_dict = {}
+                f2_dict = {}
+                f3_dict = {}
+                f4_dict = {}
+                # Initializes the formant and pitch
+                for t in times:
+                    f0 = pitch.get_value_at_time(t)
+                    f1 = formant.get_value_at_time(1, t)
+                    f2 = formant.get_value_at_time(2, t)
+                    f3 = formant.get_value_at_time(3, t)
+                    f4 = formant.get_value_at_time(4, t)
+                    if (not math.isnan(f0) and not math.isnan(f1) and not math.isnan(f2) and not math.isnan(f3)
+                            and not math.isnan(f4)):
+                        f0_dict[float(t)] = f0
+                        f1_dict[float(t)] = f1
+                        f2_dict[float(t)] = f2
+                        f3_dict[float(t)] = f3
+                        f4_dict[float(t)] = f4
+                times = sorted(f1_dict.keys())
+                # Rounds the formant up to the nearest integer and stores data in a list
+                f0_vals_arr = [round(f0_dict[t], 0) for t in times]
+                f1_vals_arr = [round(f1_dict[t], 0) for t in times]
+                f2_vals_arr = [round(f2_dict[t], 0) for t in times]
+                f3_vals_arr = [round(f3_dict[t], 0) for t in times]
+                f4_vals_arr = [round(f4_dict[t], 0) for t in times]
+                # Filters out all the frequency anomalies
+                times_f0, f0_vals_arr = filter_frequency_synchronized("F0", times, f0_vals_arr)
+                times_f1, f1_vals_arr = filter_frequency_synchronized("F1", times, f1_vals_arr)
+                times_f2, f2_vals_arr = filter_frequency_synchronized("F2", times, f2_vals_arr)
+                times_f3, f3_vals_arr = filter_frequency_synchronized("F3", times, f3_vals_arr)
+                times_f4, f4_vals_arr = filter_frequency_synchronized("F4", times, f4_vals_arr)
+                # Gets the average formants
+                f0_average = get_freq_average(f0_vals_arr)
+                f1_average = get_freq_average(f1_vals_arr)
+                f2_average = get_freq_average(f2_vals_arr)
+                f3_average = get_freq_average(f3_vals_arr)
+                f4_average = get_freq_average(f4_vals_arr)
+                # Crates a list of averages where i = 0 is f0_average and i = 4 is f4_average
+                avg_formants = [f0_average, f1_average, f2_average, f3_average, f4_average]
+                # Connects to the sqlite db
+                connect_table()
+                # Inserts the formant data into the sqlite3 database
+                insert_to_table(times_f0, f0_vals_arr, times_f1, f1_vals_arr, times_f2, f2_vals_arr,
+                                times_f3, f3_vals_arr, times_f4, f4_vals_arr, avg_formants)
+            finally:
+                if _tmp:
+                    try:
+                        os.remove(wav_path)
+                    except OSError:
+                        pass
     except NameError:
         print("No File Selected")
 
