@@ -138,7 +138,7 @@ def filter_helper(formant: str, frequency: float, time: Optional[float] = None):
         return True
 
     else:
-        # formants F1..F4: plausibility gate first
+        # formants F1...F4: plausibility gate first
         if frequency <= lo or frequency >= hi:
             return False
 
@@ -152,7 +152,7 @@ def filter_helper(formant: str, frequency: float, time: Optional[float] = None):
         else:  # f4
             prev_freq = PREVIOUS_FREQ_F4
 
-        # no previous → accept
+        # no previous -> accept
         if prev_freq is None or prev_freq <= 0:
             return True
 
@@ -204,8 +204,8 @@ def _pitch_stats(f0_hz, t_s, floor=75.0, ceil=500.0):
     if f0.size < 5:
         return None
     st = _hz_to_semitones(f0)
-    A = np.c_[t, np.ones_like(t)]
-    m, _ = np.linalg.lstsq(A, st, rcond=None)[0]
+    a = np.c_[t, np.ones_like(t)]
+    m, _ = np.linalg.lstsq(a, st, rcond=None)[0]
     p5, p95 = np.percentile(f0, [5, 95])
     return {
         "f0_mean_hz": float(np.mean(f0)),
