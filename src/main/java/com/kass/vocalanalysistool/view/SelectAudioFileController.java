@@ -1,6 +1,5 @@
 package com.kass.vocalanalysistool.view;
 
-
 import com.kass.vocalanalysistool.common.Properties;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
@@ -29,6 +28,16 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
+/**
+ * <p>Audio file selector. </p>
+ *
+ * <p> Audio file must be a [.wav] format. </p>
+ *
+ * <p>Use the provided Audacity software to record your voice. </p>
+ *
+ * @author Kassie Whitney
+ * @version 9.3.25
+ */
 public class SelectAudioFileController implements PropertyChangeListener {
 
     /**
@@ -70,17 +79,21 @@ public class SelectAudioFileController implements PropertyChangeListener {
         logger.setLevel(Level.INFO);
 
         final FileChooser fileChooser = new FileChooser();
+        final Stage thisStage = (Stage) myOpenFileButton.getScene().getWindow();
 
-        fileChooser.setTitle("Select Audio File");
+        fileChooser.setTitle("Select a [.wav] Audio File");
 
-        final File file = fileChooser.showOpenDialog(myOpenFileButton.getScene().getWindow());
+        fileChooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("WAV Audio Files", "*.wav"),
+                new FileChooser.ExtensionFilter("AIFF Audio Files", "*.aiff"));
+
+        final File file = fileChooser.showOpenDialog(thisStage);
 
         if (file != null) {
             final String path = file.getAbsolutePath();
 
             logger.info(() -> "Path: " + path);
 
-            final Stage thisStage = (Stage) myOpenFileButton.getScene().getWindow();
             thisStage.close();
 
             final FXMLLoader loadingScreenFXML = new FXMLLoader(getClass().getResource(
@@ -295,7 +308,9 @@ public class SelectAudioFileController implements PropertyChangeListener {
                     pythonScript.toString(), theFilePath), appDir);
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
                 String line;
-                while ((line = reader.readLine()) != null) logger.info("[Python] " + line);
+                while ((line = reader.readLine()) != null)
+                    System.out.println(line);
+                    //logger.info("[Python] " + line);
             }
             int exit = process.waitFor();
             if (exit != 0) logger.severe("Python script exited with code " + exit);
@@ -327,13 +342,15 @@ public class SelectAudioFileController implements PropertyChangeListener {
         env.putIfAbsent("PYTHONIOENCODING", "utf-8");
 
 
-
         return theCommandArgs.start();
     }
 
 
-
-
+    /**
+     * Adds the listener scene to the mains property change support object.
+     *
+     * @param theListener the scene listening for changed events.
+     */
     public void addPropertyChangeListener(final PropertyChangeListener theListener) {
         myChanges.addPropertyChangeListener(theListener);
     }

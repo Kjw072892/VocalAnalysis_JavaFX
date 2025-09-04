@@ -1,12 +1,10 @@
 import io
 import json
 import math
-import os
-import shutil
-import subprocess
 import sys
-import tempfile
 from sqlite3 import Binary
+from typing import Optional
+
 import matplotlib
 
 matplotlib.use("Agg")
@@ -16,6 +14,13 @@ import parselmouth
 import sqlite3
 
 FILE_PATH = None
+PREVIOUS_TIME = 0
+PREVIOUS_FREQ = 0
+PREVIOUS_FREQ_F0 = 0
+PREVIOUS_FREQ_F1 = 0
+PREVIOUS_FREQ_F2 = 0
+PREVIOUS_FREQ_F3 = 0
+PREVIOUS_FREQ_F4 = 0
 UNVOICE_DB = -200.0
 
 """
@@ -28,102 +33,132 @@ returns: tuple with the new synchronized time stamp and a list of the filtered f
 """
 
 
-def filter_frequency_synchronized(formant_: str, time_list: list[float], freqs: list[float]) -> tuple[list[float],
-list[float]]:
-    # First Filter
-    new_times = []
-    new_freqs = []
-    temp_freq = []
-    temp_time = []
-    prev_freq = 0
+# list[[time_0, f0_0, f1_0, f2_0, f3_0, f4_0], [time_1, f0_1, f1_1, f2_1, f3_1, f4_1]]
+def filter_frequency_synchronized_patch(data: list[list[float]]) -> list[list[float]]:
+    global PREVIOUS_FREQ_F0, PREVIOUS_FREQ_F1, PREVIOUS_FREQ_F2, PREVIOUS_FREQ_F3, PREVIOUS_FREQ_F4, PREVIOUS_TIME
+    post_filter = []
+    for i in range(len(data)):
+        sub_data = data[i]
+        time = sub_data[0]  # type: float
+        f0 = sub_data[1]  # type: float
+        f1 = sub_data[2]  # type: float
+        f2 = sub_data[3]  # type: float
+        f3 = sub_data[4]  # type: float
+        f4 = sub_data[5]  # type: float
 
-    # Filters out all the quiet spaces.
-    for time, freq in zip(time_list, freqs):
+        is_started = (PREVIOUS_FREQ_F1 == 0 and PREVIOUS_FREQ_F2 == 0 and PREVIOUS_FREQ_F3 == 0 and PREVIOUS_FREQ_F4
+                      == 0)
+        # Initialize the previous frequencies
+        if is_started:
+            PREVIOUS_FREQ_F0 = f0
+            PREVIOUS_FREQ_F1 = f1
+            PREVIOUS_FREQ_F2 = f2
+            PREVIOUS_FREQ_F3 = f3
+            PREVIOUS_FREQ_F4 = f4
 
-        if freq > 0:
-            new_times.append(time)
-            new_freqs.append(freq)
-
-    # Second Filter low/high pass filter
-    for time, freqs in zip(new_times, new_freqs):
-
-        if prev_freq == 0:
-            prev_freq = freqs
+        # Skips if the pitch is zero
+        if f0 is None or f0 <= 0:
             continue
-        if formant_.casefold() == "f0":
-            if 75 < freqs < 550:
-                if prev_freq_helper(freqs, prev_freq, "f0"):
-                    temp_freq.append(freqs)
-                    temp_time.append(time)
-                    prev_freq = freqs
-                    continue
-                prev_freq = 0
-                continue
 
-        elif formant_.casefold() == "f1":
-            if 250 <= freqs < 890:
-                if prev_freq_helper(freqs, prev_freq, "f1"):
-                    temp_freq.append(freqs)
-                    temp_time.append(time)
-                    prev_freq = freqs
-                    continue
-                prev_freq = 0
-                continue
+        f0_ok = filter_helper("f0", f0, time)
+        f1_ok = filter_helper("f1", f1, time)
+        f2_ok = filter_helper("f2", f2, time)
+        f3_ok = filter_helper("f3", f3, time)
+        f4_ok = filter_helper("f4", f4, time)
 
-        elif formant_.casefold() == "f2":
-            if 800 <= freqs < 2800:
-                if prev_freq_helper(freqs, prev_freq, "f2"):
-                    temp_freq.append(freqs)
-                    temp_time.append(time)
-                    prev_freq = freqs
-                    continue
-                prev_freq = 0
-                continue
+        low_ok_count = int(f1_ok) + int(f2_ok) + int(f3_ok) + int(f4_ok)
 
-        elif formant_.casefold() == "f3":
-            if 1750 < freqs < 3600:
-                if prev_freq_helper(freqs, prev_freq, "f3"):
-                    temp_freq.append(freqs)
-                    temp_time.append(time)
-                    prev_freq = freqs
-                    continue
-                prev_freq = 0
-                continue
+        valid = f0_ok and low_ok_count > 2
 
-        elif formant_.casefold() == "f4":
-            if 2850 < freqs < 4500:
-                if prev_freq_helper(freqs, prev_freq, "f4"):
-                    temp_freq.append(freqs)
-                    temp_time.append(time)
-                    prev_freq = freqs
-                    continue
-                prev_freq = 0
-                continue
+        if valid:
+            post_filter.append([time, f0, f1, f2, f3, f4])
+            PREVIOUS_FREQ_F0 = f0
+            PREVIOUS_FREQ_F1 = f1
+            PREVIOUS_FREQ_F2 = f2
+            PREVIOUS_FREQ_F3 = f3
+            PREVIOUS_FREQ_F4 = f4
+            PREVIOUS_TIME = time
 
-    return temp_time, temp_freq
+    return post_filter
 
 
-"""
-Filters out anomalies based on formant.
-"""
+def filter_helper(formant: str, frequency: float, time: Optional[float] = None):
+    global PREVIOUS_FREQ_F0, PREVIOUS_FREQ_F1, PREVIOUS_FREQ_F2, PREVIOUS_FREQ_F3, PREVIOUS_FREQ_F4, PREVIOUS_TIME
+
+    # invalid current value
+    if frequency is None or frequency <= 0:
+        return False
+
+    # optional spacing gate (ignore frames closer than 50 ms to the previous)
+    if (time is not None and PREVIOUS_TIME is not None and
+            abs(time - PREVIOUS_TIME) <= 0.05):
+        return False
+
+    form = formant.casefold()
+
+    # thresholds (continuity) in semitones and plausibility ranges in Hz
+    # tune if needed
+    ranges = {
+        "f0": (None, 75.0, 400.0),  # (th set below), hard range gate for pitch
+        "f1": (5.0, 150.0, 1200.0),
+        "f2": (7.0, 500.0, 3500.0),
+        "f3": (8.0, 1500.0, 4000.0),
+        "f4": (9.0, 2500.0, 5000.0),
+    }
+
+    if form not in ranges:
+        return False
+
+    fth, lo, hi = ranges[form]
 
 
-def prev_freq_helper(curr_freq: int, prev_freq: int, formant: str) -> bool:
-    result = True
+    # select previous value
+    if form == "f0":
+        prev_freq = PREVIOUS_FREQ_F0
+        # hard range gate for pitch
+        if frequency <= lo or frequency >= hi:
+            return False
 
-    match formant.casefold():
-        case "f0":
-            result = bool(not abs(curr_freq - prev_freq) >= 60)
-        case "f1":
-            result = bool(not abs(curr_freq - prev_freq) >= 250)
-        case "f2":
-            result = bool(not abs(curr_freq - prev_freq) >= 450)
-        case "f3":
-            result = bool(not abs(curr_freq - prev_freq) >= 650)
-        case "f4":
-            result = bool(not abs(curr_freq - prev_freq) >= 850)
+        # if we have a valid previous, enforce jump rate and continuity
+        if prev_freq is not None and prev_freq > 0:
+            # jump-size in semitones
+            st = 12.0 * abs(math.log2(frequency / prev_freq))
 
-    return result
+            # jump-rate gate: >= 2 octaves in < 1s -> > 24 st/s
+            if time is not None and PREVIOUS_TIME is not None and time > PREVIOUS_TIME:
+                dt = time - PREVIOUS_TIME
+                if dt > 0 and (st / dt) > 24.0:
+                    return False
+
+            # continuity gate for F0 (tunable; default 4 st)
+            if st > 4.0:
+                return False
+
+        # if no previous, accept current (caller should update PREVIOUS_* and PREVIOUS_TIME on accept)
+        return True
+
+    else:
+        # formants F1..F4: plausibility gate first
+        if frequency <= lo or frequency >= hi:
+            return False
+
+        # pick previous for this track
+        if form == "f1":
+            prev_freq = PREVIOUS_FREQ_F1
+        elif form == "f2":
+            prev_freq = PREVIOUS_FREQ_F2
+        elif form == "f3":
+            prev_freq = PREVIOUS_FREQ_F3
+        else:  # f4
+            prev_freq = PREVIOUS_FREQ_F4
+
+        # no previous → accept
+        if prev_freq is None or prev_freq <= 0:
+            return True
+
+        # continuity in semitones
+        st = 12.0 * abs(math.log2(frequency / prev_freq))
+        return st <= fth
 
 
 """
@@ -250,24 +285,22 @@ Generates a dot graph of all the different formant and returns
 """
 
 
-def plot_formants(time_0: list[float], f0_: list[float],
-                  time_1: list[float], f1_: list[float],
-                  time_2: list[float], f2_: list[float],
-                  time_3: list[float], f3_: list[float],
-                  time_4: list[float], f4_: list[float]) -> bytes:
+def plot_formants(time_: list[float], f0_: list[float],
+                  f1_: list[float], f2_: list[float],
+                  f3_: list[float], f4_: list[float]) -> bytes:
     ticks1 = np.arange(0, 1001, 100)
     ticks2 = np.arange(1000, 8001, 500)
     yticks = np.unique(np.concatenate([ticks1, ticks2]))
 
     fig, ax = plt.subplots(figsize=(6, 12), dpi=300)
 
-    ax.plot(time_0, f0_, label="Pitch", color="black")
+    ax.plot(time_, f0_, label="Pitch", color="black")
     ax.set_yticks(yticks)
     ax.minorticks_on()
-    ax.scatter(time_1, f1_, s=5, label="F1")
-    ax.scatter(time_2, f2_, s=5, label="F2")
-    ax.scatter(time_3, f3_, s=5, label="F3")
-    ax.scatter(time_4, f4_, s=5, label="F4")
+    ax.scatter(time_, f1_, s=5, label="F1")
+    ax.scatter(time_, f2_, s=5, label="F2")
+    ax.scatter(time_, f3_, s=5, label="F3")
+    ax.scatter(time_, f4_, s=5, label="F4")
     ax.set_xlabel("Times (s)")
     ax.set_ylabel("Frequency (Hz)")
     ax.set_ybound(0, 5501)
@@ -312,9 +345,9 @@ Inserts the formant data (raw and average) into the sql database.
 """
 
 
-def insert_to_table(time_0, f0_, time_1, f1_, time_2, f2_, time_3, f3_, time_4, f4_: list[float],
+def insert_to_table(time_0, f0_, f1_, f2_, f3_, f4_: list[float],
                     formant_avg: list[int]) -> None:
-    png_bytes = plot_formants(time_0, f0_, time_1, f1_, time_2, f2_, time_3, f3_, time_4, f4_)
+    png_bytes = plot_formants(time_0, f0_, f1_, f2_, f3_, f4_)
     payload = (
         json.dumps(list(map(float, f0_))),
         json.dumps(list(map(float, f1_))),
@@ -336,46 +369,6 @@ def insert_to_table(time_0, f0_, time_1, f1_, time_2, f2_, time_3, f3_, time_4, 
 
 
 """
-Converts incompatible audio files into a .wav file format for parslemouth.
-"""
-
-def _resolve_ffmpeg() -> str:
-    cand = os.environ.get("FFMPEG_EXE") or shutil.which("ffmpeg") or shutil.which("ffmpeg.exe")
-    if not cand:
-        raise RuntimeError(
-            "ffmpeg not found. Install it and add to PATH, or set FFMPEG_EXE to the full path of ffmpeg.exe."
-        )
-    cand = cand.strip().strip('"')  # strip accidental surrounding quotes
-    if os.path.isdir(cand):
-        cand = os.path.join(cand, "ffmpeg.exe")
-    if not os.path.isfile(cand):
-        raise RuntimeError(f"ffmpeg.exe not found at: {cand!r}")
-    return cand
-
-def ensure_wav(src_path: str, *, sample_rate: int = 44100) -> tuple[str, bool]:
-    if src_path.lower().endswith(".wav"):
-        return src_path, False
-    ffmpeg = _resolve_ffmpeg()
-    tmp = tempfile.NamedTemporaryFile(prefix="vat_", suffix=".wav", delete=False)
-    tmp_path = tmp.name
-    tmp.close()
-    cmd = [
-        ffmpeg, "-y",
-        "-hide_banner", "-loglevel", "error",
-        "-i", src_path,
-        "-vn",
-        "-ac", "1",
-        "-ar", str(sample_rate),
-        "-sample_fmt", "s16",
-        tmp_path,
-    ]
-    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-    if res.returncode != 0:
-        raise RuntimeError(f"ffmpeg failed ({res.returncode}):\n{res.stdout}")
-    return tmp_path, True
-
-
-"""
 Collects the vocal analysis data from the users vocal recording.
 """
 
@@ -387,71 +380,73 @@ def main():
         global FILE_PATH
         FILE_PATH = sys.argv[1]
         if FILE_PATH:
-            wav_path, _tmp = ensure_wav(FILE_PATH)
-            try:
-                sound = parselmouth.Sound(wav_path)
-                metrics = extract_breathiness_and_intonation(
-                    sound,
-                    time_step=0.005,
-                    pitch_floor=60.0,
-                    pitch_ceiling=500.0  # keep high to cover feminine ranges
-                )
-                print(metrics)
 
-                formant = sound.to_formant_burg(time_step=0.01)
-                pitch = sound.to_pitch(time_step=0.01)
-                times = np.arange(0, sound.get_total_duration(), .01)
-                f0_dict = {}
-                f1_dict = {}
-                f2_dict = {}
-                f3_dict = {}
-                f4_dict = {}
-                # Initializes the formant and pitch
-                for t in times:
-                    f0 = pitch.get_value_at_time(t)
-                    f1 = formant.get_value_at_time(1, t)
-                    f2 = formant.get_value_at_time(2, t)
-                    f3 = formant.get_value_at_time(3, t)
-                    f4 = formant.get_value_at_time(4, t)
-                    if (not math.isnan(f0) and not math.isnan(f1) and not math.isnan(f2) and not math.isnan(f3)
-                            and not math.isnan(f4)):
-                        f0_dict[float(t)] = f0
-                        f1_dict[float(t)] = f1
-                        f2_dict[float(t)] = f2
-                        f3_dict[float(t)] = f3
-                        f4_dict[float(t)] = f4
-                times = sorted(f1_dict.keys())
-                # Rounds the formant up to the nearest integer and stores data in a list
-                f0_vals_arr = [round(f0_dict[t], 0) for t in times]
-                f1_vals_arr = [round(f1_dict[t], 0) for t in times]
-                f2_vals_arr = [round(f2_dict[t], 0) for t in times]
-                f3_vals_arr = [round(f3_dict[t], 0) for t in times]
-                f4_vals_arr = [round(f4_dict[t], 0) for t in times]
-                # Filters out all the frequency anomalies
-                times_f0, f0_vals_arr = filter_frequency_synchronized("F0", times, f0_vals_arr)
-                times_f1, f1_vals_arr = filter_frequency_synchronized("F1", times, f1_vals_arr)
-                times_f2, f2_vals_arr = filter_frequency_synchronized("F2", times, f2_vals_arr)
-                times_f3, f3_vals_arr = filter_frequency_synchronized("F3", times, f3_vals_arr)
-                times_f4, f4_vals_arr = filter_frequency_synchronized("F4", times, f4_vals_arr)
-                # Gets the average formants
-                f0_average = get_freq_average(f0_vals_arr)
-                f1_average = get_freq_average(f1_vals_arr)
-                f2_average = get_freq_average(f2_vals_arr)
-                f3_average = get_freq_average(f3_vals_arr)
-                f4_average = get_freq_average(f4_vals_arr)
-                # Crates a list of averages where i = 0 is f0_average and i = 4 is f4_average
-                avg_formants = [f0_average, f1_average, f2_average, f3_average, f4_average]
-                # Connects to the sqlite db
-                connect_table()
-                # Inserts the formant data into the sqlite3 database
-                insert_to_table(times_f0, f0_vals_arr, times_f1, f1_vals_arr, times_f2, f2_vals_arr,
-                                times_f3, f3_vals_arr, times_f4, f4_vals_arr, avg_formants)
-            finally:
-                if _tmp:
-                    try:
-                        os.remove(wav_path)
-                    except OSError:
-                        pass
+            sound = parselmouth.Sound(FILE_PATH)
+            metrics = extract_breathiness_and_intonation(
+                sound,
+                time_step=0.005,
+                pitch_floor=60.0,
+                pitch_ceiling=500.0  # keep high to cover feminine ranges
+            )
+            print(metrics)
+
+            formant = sound.to_formant_burg(time_step=0.01)
+            pitch = sound.to_pitch(time_step=0.01)
+            times = np.arange(0, sound.get_total_duration(), 0.01)
+            f0_dict = {}
+            f1_dict = {}
+            f2_dict = {}
+            f3_dict = {}
+            f4_dict = {}
+            # Initializes the formant and pitch
+
+            full_data = []
+
+            for t in times:
+                f0 = pitch.get_value_at_time(t)
+                f1 = formant.get_value_at_time(1, t)
+                f2 = formant.get_value_at_time(2, t)
+                f3 = formant.get_value_at_time(3, t)
+                f4 = formant.get_value_at_time(4, t)
+                if (not math.isnan(f0) and not math.isnan(f1) and not math.isnan(f2) and not math.isnan(f3)
+                        and not math.isnan(f4)):
+                    f0_dict[float(t)] = f0
+                    f1_dict[float(t)] = f1
+                    f2_dict[float(t)] = f2
+                    f3_dict[float(t)] = f3
+                    f4_dict[float(t)] = f4
+
+                    full_data.append([float(round(t,2)), round(f0, 5), round(f1, 5), round(f2, 5), round(f3, 5),
+                                      round(f4, 5)])
+
+
+            full_data = filter_frequency_synchronized_patch(full_data)
+            times_, f0_vals_arr, f1_vals_arr, f2_vals_arr, f3_vals_arr, f4_vals_arr = [], [], [], [], [], []
+            print(full_data)
+
+            for i in range(len(full_data)):
+                times_.append(full_data[i][0])
+                f0_vals_arr.append(full_data[i][1])
+                f1_vals_arr.append(full_data[i][2])
+                f2_vals_arr.append(full_data[i][3])
+                f3_vals_arr.append(full_data[i][4])
+                f4_vals_arr.append(full_data[i][5])
+
+            # Gets the average formants
+            f0_average = get_freq_average(f0_vals_arr)
+            f1_average = get_freq_average(f1_vals_arr)
+            f2_average = get_freq_average(f2_vals_arr)
+            f3_average = get_freq_average(f3_vals_arr)
+            f4_average = get_freq_average(f4_vals_arr)
+            # Crates a list of averages where i = 0 is f0_average and i = 4 is f4_average
+            avg_formants = [f0_average, f1_average, f2_average, f3_average, f4_average]
+            # Connects to the sqlite db
+            connect_table()
+            # Inserts the formant data into the sqlite3 database
+            insert_to_table(times_, f0_vals_arr, f1_vals_arr, f2_vals_arr,
+                            f3_vals_arr, f4_vals_arr, avg_formants)
+
+
     except NameError:
         print("No File Selected")
 

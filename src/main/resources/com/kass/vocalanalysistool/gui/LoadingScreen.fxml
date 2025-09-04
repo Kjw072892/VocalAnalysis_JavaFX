@@ -2,14 +2,19 @@
 
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ProgressBar?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.text.Font?>
 
-<AnchorPane prefHeight="110.0" prefWidth="279.0" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.kass.vocalanalysistool.view.LoadingScreenController">
-    <Label layoutX="56.0" layoutY="23.0" text="Installing Dependencies:" AnchorPane.topAnchor="25.0">
+<AnchorPane prefHeight="90.0" prefWidth="279.0" style="-fx-background-color: linear-gradient(to bottom, #92e7ff 0%, #ffb4fa 35%, #FFFFFF 100%);" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.kass.vocalanalysistool.view.LoadingScreenController">
+    <Label layoutX="86.0" layoutY="27.0" text="Please Wait:" AnchorPane.topAnchor="27.0">
         <font>
-          <Font name="Dubai Bold" size="17.0" />
+          <Font name="Elephant" size="17.0" />
         </font>
     </Label>
-    <ProgressBar fx:id="myProgBar" layoutX="21.0" layoutY="70.0" prefHeight="18.0" prefWidth="233.0" progress="0.0" AnchorPane.bottomAnchor="20.0" AnchorPane.leftAnchor="15.0" AnchorPane.rightAnchor="15.0" />
+    <ProgressBar fx:id="myProgBar" layoutX="15.0" layoutY="77.0" prefHeight="18.0" prefWidth="233.0" progress="0.0" AnchorPane.bottomAnchor="14.0" AnchorPane.leftAnchor="15.0" AnchorPane.rightAnchor="15.666666666666629" />
+    <ImageView fitHeight="25.0" fitWidth="26.0" layoutX="14.0" layoutY="14.0">
+        <Image url="@../icons/vocal_analysis_icon.png"/>
+    </ImageView>
 </AnchorPane>

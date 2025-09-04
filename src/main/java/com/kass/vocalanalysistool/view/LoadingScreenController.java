@@ -5,14 +5,14 @@ import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import javafx.fxml.FXML;
 import javafx.scene.control.ProgressBar;
-import javafx.stage.Stage;
 
+/**
+ * Shows the loading screen whenever an audio file gets selected.
+ *
+ * @author Kassie Whitney
+ * @version 9.3.25
+ */
 public class LoadingScreenController implements PropertyChangeListener {
-
-    @FXML
-    private void initialize() {
-
-    }
 
     @FXML
     private ProgressBar myProgBar;
@@ -28,7 +28,6 @@ public class LoadingScreenController implements PropertyChangeListener {
     @Override
     public void propertyChange(final PropertyChangeEvent theEvent) {
         if(theEvent.getPropertyName().equals(Properties.UPDATE_PROGRESS.toString())) {
-
             myProgBar.setProgress((double) theEvent.getNewValue());
         }
     }

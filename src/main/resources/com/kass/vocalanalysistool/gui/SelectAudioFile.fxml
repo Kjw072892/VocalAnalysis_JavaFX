@@ -10,8 +10,7 @@
 <?import javafx.scene.shape.Rectangle?>
 <?import javafx.scene.text.Font?>
 
-<AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0"
-            prefWidth="453.0" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.kass.vocalanalysistool.view.SelectAudioFileController">
+<AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="453.0" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.kass.vocalanalysistool.view.SelectAudioFileController">
 
    <!-- Background pane -->
    <Pane prefHeight="400.0" prefWidth="453.0" style="-fx-border-radius: 0; -fx-border-color: #000000; -fx-border-width: 2; -fx-background-color: linear-gradient(to bottom, #92e7ff 0%, #ffb4fa 35%, #FFFFFF 100%);" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
@@ -59,7 +58,7 @@
             <Font name="SansSerif Bold" size="43.0" />
          </font>
       </Label>
-      <Label layoutX="20.0" layoutY="85.0" prefHeight="61.0" prefWidth="413.0" text="Gender &amp; Resonance Insights">
+      <Label layoutX="36.0" layoutY="85.0" prefHeight="61.0" prefWidth="391.0" text="Pitch &amp; Resonance Insights">
          <font>
             <Font name="SansSerif Bold" size="29.0" />
          </font>
