@@ -79,7 +79,7 @@ public class AudioDataController {
                 
                 * Lip Shape & Resonance Characteristics:
                 
-                    ** F3: Cis Women [2600 - 3600] Hz | Cis Men [1600 - 2800] Hz 
+                    ** F3: Cis Women [2600 - 3600] Hz | Cis Men [1600 - 2800] Hz
                 
                     - Influenced by:
                         + Lip rounding -> Lowers F3 (as in /r/ and /u/)
@@ -100,7 +100,7 @@ public class AudioDataController {
                         + Voice quality
                         + Subtle articulation cues
                 
-                    - Used more in voice profiling (e.g., gender, vocal effort), 
+                    - Used more in voice profiling (e.g., gender, vocal effort),
                       not vowel identification
                 """
         );
