@@ -204,9 +204,9 @@ public class SelectAudioFileController implements PropertyChangeListener {
     }
 
     /**
-     * Gets the directory of the application.
+     * Gets the temporary directory of the python script.
      *
-     * @return the path of the directory that the application is installed on.
+     * @return the path of the directory that the python script is installed on.
      */
     private Path getAppDir() {
         return Path.of(System.getProperty("user.dir")).toAbsolutePath();
@@ -223,24 +223,26 @@ public class SelectAudioFileController implements PropertyChangeListener {
                     "/VocalAnalysisToolKit/Vocal_Analysis_Script.py", ".py");
             final Path setupBat = extractResourceToTemp("/pythonInstall.bat", ".bat");
 
-            final Path appDir = getAppDir();
+            final Path appDir = getAppDir(); //The directory of the program install location
 
             myChanges.firePropertyChange(Properties.UPDATE_PROGRESS.toString(), 0,
                     (double) 10);
 
             myChanges.firePropertyChange(Properties.UPDATE_PROGRESS.toString(), 0,
                     (double) 16 / 100);
-            // 1) Run setup in appDir so .venv is created at appDir\.venv
+
+            // Run setup in appDir so .venv is created at appDir\.venv
             final ProcessBuilder setupPB = new ProcessBuilder("cmd.exe", "/c",
                     setupBat.toString());
             setupPB.directory(appDir.toFile());
             setupPB.redirectErrorStream(true);
             final Process setupProc = setupPB.start();
-            try (BufferedReader r = new BufferedReader(new InputStreamReader(setupProc.getInputStream()))) {
+            try (final BufferedReader reader =
+                         new BufferedReader(new InputStreamReader(setupProc.getInputStream()))) {
                 String ln;
-                while ((ln = r.readLine()) != null) logger.info("[setup] " + ln);
+                while ((ln = reader.readLine()) != null) logger.info("[setup] " + ln);
             }
-            int setupExit = setupProc.waitFor();
+            final int setupExit = setupProc.waitFor();
             if (setupExit != 0) {
                 logger.severe("Environment setup failed (exit " + setupExit + "); aborting.");
                 return;
@@ -248,6 +250,7 @@ public class SelectAudioFileController implements PropertyChangeListener {
 
             myChanges.firePropertyChange(Properties.UPDATE_PROGRESS.toString(), 0,
                     (double) 32 / 100);
+
             // 2) Resolve venv python; do not silently fall back
             final Path venvPy = appDir.resolve(".venv").resolve("Scripts").resolve("python.exe");
             if (!Files.exists(venvPy)) {
@@ -303,14 +306,16 @@ public class SelectAudioFileController implements PropertyChangeListener {
 
             myChanges.firePropertyChange(Properties.UPDATE_PROGRESS.toString(), 0,
                     (double) 95 / 100);
-            // 5) Run your real script
-            Process process = getProcess(new ProcessBuilder(pythonExe,
+
+            // 5) Runs the python script
+            final Process process = getProcess(new ProcessBuilder(pythonExe,
                     pythonScript.toString(), theFilePath), appDir);
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+            try (final BufferedReader reader =
+                         new BufferedReader(new InputStreamReader(process.getInputStream()))) {
                 String line;
                 while ((line = reader.readLine()) != null)
-                    System.out.println(line);
-                    //logger.info("[Python] " + line);
+
+                    logger.info("[Python] " + line);
             }
             int exit = process.waitFor();
             if (exit != 0) logger.severe("Python script exited with code " + exit);
@@ -366,4 +371,5 @@ public class SelectAudioFileController implements PropertyChangeListener {
     public void propertyChange(final PropertyChangeEvent theEvent) {
 
     }
+
 }
