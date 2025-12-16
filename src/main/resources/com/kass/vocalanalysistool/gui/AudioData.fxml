@@ -14,29 +14,28 @@
 <AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="600.0" prefWidth="800.0" style="-fx-background-color: linear-gradient(to bottom, #92e7ff 0%, #ffb4fa 35%, #FFFFFF 100%);" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.kass.vocalanalysistool.view.AudioDataController">
 
     <!-- The analyze button !-->
-   <Button layoutX="620.0" layoutY="553.0" minWidth="130.0" mnemonicParsing="false" onAction="#handleAnalyzeButton" prefHeight="30.0" style="-fx-background-radius: 45; -fx-border-color: #999; -fx-border-radius: 45;            -fx-border-width: 1; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 2, 0, 0, 1);            -fx-background-color: #ffffff;" text="Analyze Data" AnchorPane.bottomAnchor="15.0" AnchorPane.rightAnchor="50.0">
+   <Button accessibleHelp="Opens a new window that analyzes your formant data" accessibleText="Analyze Recording" layoutX="620.0" layoutY="553.0" minWidth="130.0" onAction="#handleAnalyzeButton" prefHeight="30.0" style="-fx-background-radius: 45; -fx-border-color: #999; -fx-border-radius: 45;            -fx-border-width: 1; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 2, 0, 0, 1);            -fx-background-color: #ffffff;" text="_Analyze Recording" AnchorPane.bottomAnchor="15.0" AnchorPane.rightAnchor="50.0">
       <font>
          <Font name="Candara Bold" size="16.0" />
       </font>
    </Button>
 
     <!-- The new recording button !-->
-   <Button layoutX="377.0" layoutY="553.0" minWidth="130.0" mnemonicParsing="false" onAction="#handleNewRecordingButton" prefHeight="30.0" style="-fx-background-radius: 45; -fx-border-color: #999; -fx-border-radius: 45; -fx-border-width: 1;            -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 2, 0, 0, 1);            -fx-background-color: #ffffff;" text="New Recording" AnchorPane.bottomAnchor="15.0">
+   <Button layoutX="377.0" layoutY="553.0" minWidth="130.0" onAction="#handleNewRecordingButton" prefHeight="30.0" prefWidth="152.0" style="-fx-background-radius: 45; -fx-border-color: #999; -fx-border-radius: 45; -fx-border-width: 1;            -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 2, 0, 0, 1);            -fx-background-color: #ffffff;" text="New _Recording" AnchorPane.bottomAnchor="15.0">
       <font>
          <Font name="Candara Bold" size="16.0" />
       </font>
    </Button>
     <MenuBar prefHeight="26.0" prefWidth="800.0" style="-fx-background-color: #ffffff; -fx-border-color: #f6f6f6;">
-        <Menu fx:id="myFileMenuButton" mnemonicParsing="false" text="File">
-            <MenuItem fx:id="myNewAnalysisMenuItem" mnemonicParsing="false" text="New Analysis" />
-            <MenuItem fx:id="myOpenMenuItem" mnemonicParsing="false" text="Open" />
-            <MenuItem fx:id="mySaveAnalysisMenuItem" mnemonicParsing="false" text="Save Analysis" />
-            <MenuItem fx:id="myExportMenuItem" mnemonicParsing="false" text="Export" />
-            <MenuItem fx:id="myCloseMenuItem" mnemonicParsing="false" text="Close" />
+        <Menu text="_File">
+            <MenuItem onAction="#handleNewRecordingButton" text="_New Recording" />
+            <MenuItem onAction="#handleNewRecordingButton" text="_Analyze Recording" />
+            <MenuItem onAction="#handleMyExportButton" text="_Export" />
+            <MenuItem onAction="#handleCloseProgram" text="_Close" />
         </Menu>
-        <Menu fx:id="myHelpButton" mnemonicParsing="false" text="Help">
-            <MenuItem mnemonicParsing="false" text="User Guide" />
-            <MenuItem mnemonicParsing="false" text="About Vocal Analysis" />
+        <Menu text="_Help">
+            <MenuItem onAction="#handleMyUserGuideMenuItem" text="_User Guide" />
+            <MenuItem onAction="#handleMyAboutVocalAnalysisMenuItem" text="_About Vocal Analysis" />
         </Menu>
     </MenuBar>
     <!-- The Scatter plot image !-->
@@ -45,7 +44,7 @@
     <ScrollPane layoutX="400.0" layoutY="74.0" prefHeight="469.0" prefWidth="439.0" style="-fx-background-color: #f6f6f6;" AnchorPane.bottomAnchor="56.0" AnchorPane.rightAnchor="15.0" AnchorPane.topAnchor="75.0">
 
         <!-- The label for information !-->
-        <Label fx:id="myInstructionLabel">
+        <Label fx:id="myInformationLabel" accessibleText="Formant [F1–F4] are resonant frequency ranges shaped by the vocal tract. Vowels and vocal-tract configuration (tongue, lips, jaw) strongly influence  formant placement. Typical ranges for cisgender women and men are listed below, but note that these values overlap and vary by age, dialect, and context. Formant data can give you a good idea about how you are forming your vowels, tongue placements, lips placements, jaw placements, and resonance locations. Gender perception of your voice can be predicted based on pitch frequencies, formant frequencies, your breathiness index, and intonation data. Pitch.          Pitch [F0] Cis Women [165 - 300] Hz | Cis Men [85 - 155] Hz: Pitch plays a huge role on how a person may gender your voice. Pitch alone can not be reliably used to determine the gender perception of your voice. We must take into consideration of other factors talked about bellow to get a more accurate assessment of the gender perception of your voice. Resonance.          F1: Cis Women [300 - 900] Hz | Cis Men [250 - 750] Hz. Influenced by Tongue Height (Mouth Openness). High tongue (closed mouth) yields Low F1: Vowels like /i/ ('ee' as in beet), /u/ ('oo' in boot). Low tongue (open mouth) yields High F1: Vowels like /a/ ('ah' in father), /æ/ ('a' in cat). Inversely related to tongue height: To increase F1: lower the tongue (open the mouth more). To decrease F1: raise the tongue (close the mouth more).          F2: Cis Women [1450- 3200] Hz | Cis Men [725 - 1900] Hz: Influenced by Tongue Frontness. Influenced by Tongue Frontness. Tongue forward yields High F2: Vowels like /i/ ('ee'), /e/ ('ay'). Tongue back yields Low F2: Vowels like /u/ ('oo'), /o/ ('oh'), /a/ ('ah'). Directly related to tongue front-ness.          F3: Cis Women [2600 - 3600] Hz | Cis Men [1600 - 2800] Hz: Influenced by Lip Shape and Resonance Characteristics. Influenced by: Lip rounding yields Lowers F3:         Vowels like (/r/ ('rr' like in red and run) and /u/ ('oo' in boot)). Constrictions in oral cavity.Less dramatically tied to vowels than F1/F2, but:         /i/ ('ee') tends to have a higher F3. /u/ ('oo') and /r/ ('rr') tends to have a lower F3.          F4: Cis Women [3500 - 5000] Hz | Cis Men [2800 - 3700] Hz: Speaker and Timbre Characteristics. Not directly vowel-diagnostic. Affected by:         Vocal tract length, Voice quality, Subtle articulation cues. Used more in voice profiling (e.g., gender, vocal effort) and not vowel identification.  ">
            <padding>
                <Insets left="5.0" top="5.0" />
            </padding>

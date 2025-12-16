@@ -81,7 +81,7 @@ public class SelectAudioFileController implements PropertyChangeListener {
         final FileChooser fileChooser = new FileChooser();
         final Stage thisStage = (Stage) myOpenFileButton.getScene().getWindow();
 
-        fileChooser.setTitle("Select a [.wav] Audio File");
+        fileChooser.setTitle("Select Audio File");
 
         fileChooser.getExtensionFilters().addAll(
                 new FileChooser.ExtensionFilter("WAV Audio Files", "*.wav"),
@@ -121,11 +121,20 @@ public class SelectAudioFileController implements PropertyChangeListener {
         }
     }
 
-    private Task<Void> getThreadedTask(String path, LoadingScreenController loadingScreenController, Stage loadingScreenStage) {
+    /**
+     * Runs the python script on a separate thread.
+     * @param thePath the path of the python script.
+     * @param theLoadingScreenController The loading screen controller object.
+     * @param theLoadingScreenStage The loading screen stage object.
+     * @return a task object of the thread.
+     */
+    private Task<Void> getThreadedTask(final String thePath,
+                                       final LoadingScreenController theLoadingScreenController,
+                                       final Stage theLoadingScreenStage) {
         final Task<Void> task = new Task<>() {
             @Override
             protected Void call() {
-                runPythonScript(path);
+                runPythonScript(thePath);
                 myChanges.firePropertyChange(Properties.UPDATE_PROGRESS.toString(), 0,
                         (double) 1);
                 return null;
@@ -134,9 +143,9 @@ public class SelectAudioFileController implements PropertyChangeListener {
 
         task.setOnSucceeded(theEvent -> {
 
-            if (loadingScreenController.getProgressStatus() == (double) 1) {
-                myChanges.removePropertyChangeListener(loadingScreenController);
-                loadingScreenStage.close();
+            if (theLoadingScreenController.getProgressStatus() == (double) 1) {
+                myChanges.removePropertyChangeListener(theLoadingScreenController);
+                theLoadingScreenStage.close();
             }
 
             try {
@@ -165,8 +174,8 @@ public class SelectAudioFileController implements PropertyChangeListener {
         });
 
         task.setOnFailed(theEvent -> {
-            myChanges.removePropertyChangeListener(loadingScreenController);
-            loadingScreenStage.close();
+            myChanges.removePropertyChangeListener(theLoadingScreenController);
+            theLoadingScreenStage.close();
             logger.log(Level.SEVERE, "Processing failed", task.getException());
 
         });
@@ -327,7 +336,7 @@ public class SelectAudioFileController implements PropertyChangeListener {
     }
 
     /**
-     * Helper method to condense code
+     * Helper method to condense code. Gets the process object based on the process builder.
      *
      * @param theCommandArgs the arguments of which process builder is executing
      * @param theAppDir      The path of the application directory

@@ -2,10 +2,11 @@ import io
 import json
 import math
 import sys
+from pathlib import Path
 from sqlite3 import Binary
 from typing import Optional
-
 import matplotlib
+import pandas as pd
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -14,27 +15,34 @@ import parselmouth
 import sqlite3
 
 FILE_PATH = None
-PREVIOUS_TIME = 0
-PREVIOUS_FREQ = 0
-PREVIOUS_FREQ_F0 = 0
-PREVIOUS_FREQ_F1 = 0
-PREVIOUS_FREQ_F2 = 0
-PREVIOUS_FREQ_F3 = 0
-PREVIOUS_FREQ_F4 = 0
+PREVIOUS_TIME: Optional[float] = None
+PREVIOUS_FREQ_F0: Optional[float] = None
+PREVIOUS_FREQ_F1: Optional[float] = None
+PREVIOUS_FREQ_F2: Optional[float] = None
+PREVIOUS_FREQ_F3: Optional[float] = None
+PREVIOUS_FREQ_F4: Optional[float] = None
 UNVOICE_DB = -200.0
 
-"""
-Filters anomalous frequencies
 
-time_list: A list of the time stamp extracted from the audio sample
-freqs: A list of the frequencies extracted from the audio sample
+def _reset_track_state():
 
-returns: tuple with the new synchronized time stamp and a list of the filtered frequencies
-"""
+    """
+    Resets the global variables to default state.
+
+    """
+    global PREVIOUS_TIME, PREVIOUS_FREQ_F0, PREVIOUS_FREQ_F1, PREVIOUS_FREQ_F2, PREVIOUS_FREQ_F3, PREVIOUS_FREQ_F4
+    PREVIOUS_TIME = None
+    PREVIOUS_FREQ_F0 = PREVIOUS_FREQ_F1 = PREVIOUS_FREQ_F2 = PREVIOUS_FREQ_F3 = PREVIOUS_FREQ_F4 = None
 
 
 # list[[time_0, f0_0, f1_0, f2_0, f3_0, f4_0], [time_1, f0_1, f1_1, f2_1, f3_1, f4_1]]
 def filter_frequency_synchronized_patch(data: list[list[float]]) -> list[list[float]]:
+    """
+    Filters anomalous frequency data and unvoiced segments.
+
+    :param data: A matrix of raw vocal frequency data.
+    :return: A matrix of filtered vocal frequency data.
+    """
     global PREVIOUS_FREQ_F0, PREVIOUS_FREQ_F1, PREVIOUS_FREQ_F2, PREVIOUS_FREQ_F3, PREVIOUS_FREQ_F4, PREVIOUS_TIME
     post_filter = []
     for i in range(len(data)):
@@ -46,10 +54,8 @@ def filter_frequency_synchronized_patch(data: list[list[float]]) -> list[list[fl
         f3 = sub_data[4]  # type: float
         f4 = sub_data[5]  # type: float
 
-        is_started = (PREVIOUS_FREQ_F1 == 0 and PREVIOUS_FREQ_F2 == 0 and PREVIOUS_FREQ_F3 == 0 and PREVIOUS_FREQ_F4
-                      == 0)
         # Initialize the previous frequencies
-        if is_started:
+        if PREVIOUS_TIME is None:
             PREVIOUS_FREQ_F0 = f0
             PREVIOUS_FREQ_F1 = f1
             PREVIOUS_FREQ_F2 = f2
@@ -60,11 +66,11 @@ def filter_frequency_synchronized_patch(data: list[list[float]]) -> list[list[fl
         if f0 is None or f0 <= 0:
             continue
 
-        f0_ok = filter_helper("f0", f0, time)
-        f1_ok = filter_helper("f1", f1, time)
-        f2_ok = filter_helper("f2", f2, time)
-        f3_ok = filter_helper("f3", f3, time)
-        f4_ok = filter_helper("f4", f4, time)
+        f0_ok = _filter_helper("f0", f0, time)
+        f1_ok = _filter_helper("f1", f1, time)
+        f2_ok = _filter_helper("f2", f2, time)
+        f3_ok = _filter_helper("f3", f3, time)
+        f4_ok = _filter_helper("f4", f4, time)
 
         low_ok_count = int(f1_ok) + int(f2_ok) + int(f3_ok) + int(f4_ok)
 
@@ -82,16 +88,26 @@ def filter_frequency_synchronized_patch(data: list[list[float]]) -> list[list[fl
     return post_filter
 
 
-def filter_helper(formant: str, frequency: float, time: Optional[float] = None):
+def _filter_helper(formant: str, frequency: float, time: Optional[float] = None):
+    """
+    Helper function that determines if a frequency is within the bounds of the formant.
+
+    :param formant: The formant the frequency is being checked against.
+    :param frequency: The frequency that's being checked.
+    :param time: The time that corresponds to the frequency.
+    :return: True if frequency is within the bounds of the formant.
+    False otherwise.
+    """
     global PREVIOUS_FREQ_F0, PREVIOUS_FREQ_F1, PREVIOUS_FREQ_F2, PREVIOUS_FREQ_F3, PREVIOUS_FREQ_F4, PREVIOUS_TIME
 
     # invalid current value
     if frequency is None or frequency <= 0:
         return False
 
-    # optional spacing gate (ignore frames closer than 50 ms to the previous)
+    # optional spacing gate (ignore frames closer than 20 ms to the previous)
     if (time is not None and PREVIOUS_TIME is not None and
-            abs(time - PREVIOUS_TIME) <= 0.05):
+            time > PREVIOUS_TIME and
+            abs(time - PREVIOUS_TIME) <= 0.02):
         return False
 
     form = formant.casefold()
@@ -99,18 +115,17 @@ def filter_helper(formant: str, frequency: float, time: Optional[float] = None):
     # thresholds (continuity) in semitones and plausibility ranges in Hz
     # tune if needed
     ranges = {
-        "f0": (None, 75.0, 400.0),  # (th set below), hard range gate for pitch
-        "f1": (5.0, 150.0, 1200.0),
-        "f2": (7.0, 500.0, 3500.0),
-        "f3": (8.0, 1500.0, 4000.0),
-        "f4": (9.0, 2500.0, 5000.0),
+        "f0": (None, 75.0, 600.0),  # (th set below), hard range gate for pitch
+        "f1": (5.0, 250.0, 950.0),
+        "f2": (7.0, 700.0, 3300.0),
+        "f3": (8.0, 1500.0, 3700.0),
+        "f4": (9.0, 2700.0, 5000.0),
     }
 
     if form not in ranges:
         return False
 
     fth, lo, hi = ranges[form]
-
 
     # select previous value
     if form == "f0":
@@ -161,41 +176,59 @@ def filter_helper(formant: str, frequency: float, time: Optional[float] = None):
         return st <= fth
 
 
-"""
-Get the average frequency for the designated formant frequency band
+def get_freq_average(freq_data: list[float]) -> float:
+    """
+    Get the average frequency for the designated formant frequency band.
 
-freq_data: list of frequencies extracted from the sample
-sel_formant: the formant frequency band( F0, F1, F2, F3, F4)
-"""
+    :param freq_data: List of frequencies extracted from the sample
+    :return: The mean formant.
+    """
 
+    vals = [x for x in freq_data if x is not None and x > 0 and math.isfinite(x)]
 
-def get_freq_average(freq_data: list[float]):
-    result = 0
-    num_of_freq = 0
-
-    for freq in freq_data:
-        result += freq
-        num_of_freq += 1
-
-    return result / num_of_freq
+    return sum(vals) / len(vals) if vals else float("nan")
 
 
 def _hz_to_semitones(hz, ref=55.0):
+    """
+    Converts Hz to semitones.
+    :param hz: The hz to convert to semitone.
+    :param ref: The zero point of which what frequency counts as 0 semitones.
+    Default is 55 Hz.
+    :return: Returns the number of semitones that corresponds to the given frequency in Hz.
+    """
     hz = np.asanyarray(hz, dtype=float)
     hz = hz[hz > 0]
     return 12.0 * np.log2(hz / ref)
 
 
-def _semitones(a, b):
-    a = np.asarray(a, float)
-    b = np.asarray(b, float)
-    mask = (a > 0) & (b > 0)
-    out = np.full(np.broadcast(a, b).shape, np.nan, dtype=float)
-    out[mask] = 12.0 * np.log2(a[mask] / b[mask])
+def _semitones(freq_list_1: list[float], freq_list_2: list[float]):
+    """
+    Computes the difference in semitones between two frequency arrays.
+
+    :param freq_list_1: The first frequency array.
+    :param freq_list_2: The second frequency array.
+    :return: Array of frequency differences.
+    """
+    one_octave = 12.0
+    freq_list_1 = np.asarray(freq_list_1, float)
+    freq_list_2 = np.asarray(freq_list_2, float)
+    mask = (freq_list_1 > 0) & (freq_list_2 > 0)
+    out = np.full(np.broadcast(freq_list_1, freq_list_2).shape, np.nan, dtype=float)
+    out[mask] = one_octave * np.log2(freq_list_1[mask] / freq_list_2[mask])
     return out
 
 
-def _pitch_stats(f0_hz, t_s, floor=75.0, ceil=500.0):
+def _pitch_stats(f0_hz: list[float], t_s: list[float], floor=75.0, ceil=600.0):
+    """
+    Gets the pitch statistics of the f0 frequency list.
+
+    :param f0_hz:
+    :param t_s:
+    :param floor:
+    :param ceil:
+    :return:
+    """
     f0 = np.asarray(f0_hz, float)
     t = np.asarray(t_s, float)
     voiced = np.isfinite(f0) & (f0 >= floor) & (f0 <= ceil)
@@ -223,9 +256,18 @@ def _pitch_stats(f0_hz, t_s, floor=75.0, ceil=500.0):
 def extract_breathiness_and_intonation(
         sound: parselmouth.Sound,
         *,
-        time_step: float = 0.01,
+        time_step: float = 10,
         pitch_floor: float = 75.0,
         pitch_ceiling: float = 600) -> dict:
+    """
+    Extracts the breathiness and intonation from the raw vocal sample.
+    :param sound: Raw vocal sample.
+    :param time_step: The number of steps in Ms. Default is 10 ms
+    :param pitch_floor:
+    :param pitch_ceiling:
+    :return:
+    """
+    time_step = time_step / 1000
     pitch = sound.to_pitch(time_step=time_step, pitch_floor=pitch_floor, pitch_ceiling=pitch_ceiling)
     f0 = pitch.selected_array['frequency']
     times = pitch.xs()
@@ -237,7 +279,7 @@ def extract_breathiness_and_intonation(
 
     voiced_frames = int(f0_v.size)
     total_frames = int(f0.size)
-    voiced_frac = (voiced_frames / total_frames) if total_frames else np.nan
+    voiced_ratio = (voiced_frames / total_frames) if total_frames else np.nan
 
     stats = _pitch_stats(f0_v, t_v, floor=pitch_floor, ceil=pitch_ceiling)
     if stats is None:
@@ -257,14 +299,14 @@ def extract_breathiness_and_intonation(
             f0_p95_hz=stats["f0_p95_hz"],
             range_st_5_95=stats["range_st_5_95"],
             f0_sd_st=stats["f0_sd_st"],
-            voiced_frac=voiced_frac
+            voiced_frac=voiced_ratio
         )
 
     # ---- Breathiness block ----
     harm = sound.to_harmonicity_cc(time_step=time_step, minimum_pitch=pitch_floor, periods_per_window=1.0)
     hnr_raw = harm.values.ravel()  # includes UNVOICE_DB for unvoiced
     hnr_total = int(hnr_raw.size)
-    hnr_voiced_mask = (hnr_raw != UNVOICE_DB)
+    hnr_voiced_mask = (hnr_raw != UNVOICE_DB) & np.isfinite(hnr_raw)
     hnr_voiced_frames = int(np.sum(hnr_voiced_mask))
     hnr_voiced_fraction = (hnr_voiced_frames / hnr_total) if hnr_total else np.nan
 
@@ -280,14 +322,163 @@ def extract_breathiness_and_intonation(
     return {"breathiness": breathiness, "intonation": intonation}
 
 
-"""
-Generates a dot graph of all the different formant and returns 
-"""
+# -----------------Summarizes the formants per file----------------
 
+def summarize_formants(filtered_rows: list[list[float]]) -> dict:
+    """
+    Converts the formant matrix into a usable dictionary to run through the prediction model.
+    :param filtered_rows: The post filtered list of formants
+    :return: A dictionary of the filtered formants median and ratios.
+    """
+
+    if not filtered_rows:
+        return {
+            "F0_med": np.nan, "F0_p5": np.nan, "F0_p95": np.nan,
+            "F1_med": np.nan, "F2_med": np.nan, "F3_med": np.nan, "F4_med": np.nan,
+            "F2_over_F1": np.nan, "F3_over_F2": np.nan, "F4_over_F3": np.nan
+        }
+
+    arr = np.asarray(filtered_rows, float)
+    f0, f1, f2, f3, f4 = arr[:, 1], arr[:, 2], arr[:, 3], arr[:, 4], arr[:, 5]
+
+    def safe_med(x):
+        x = x[(x > 0) & np.isfinite(x)]
+        return float(np.median(x)) if x.size else np.nan
+
+    out = {
+        "F0_med": safe_med(f0),
+        "F0_p5": float(np.percentile(f0[f0 > 0], 5)) if np.any(f0 > 0) else np.nan,
+        "F0_p95": float(np.percentile(f0[f0 > 0], 95)) if np.any(f0 > 0) else np.nan,
+        "F1_med": safe_med(f1),
+        "F2_med": safe_med(f2),
+        "F3_med": safe_med(f3),
+        "F4_med": safe_med(f4)
+    }
+
+    # ratios capture spacing/ brightness; guard divides
+    out["F2_over_F1"] = (out["F2_med"] / out["F1_med"]) if (out["F1_med"] and np.isfinite(out["F1_med"])) else np.nan
+    out["F3_over_F2"] = (out["F3_med"] / out["F2_med"]) if (out["F2_med"] and np.isfinite(out["F2_med"])) else np.nan
+    out["F4_over_F3"] = (out["F4_med"] / out["F3_med"]) if (out["F3_med"] and np.isfinite(out["F3_med"])) else np.nan
+    return out
+
+
+# ---- Flatten the intonation + breathiness dicts
+
+def flatten_features(breathiness: dict, intonation: dict) -> dict:
+    """
+    Combines the breathiness index dictionary and the intonation diction into a single dictionary.
+    Used to run through the logistic regression trained model.
+    :param breathiness:
+    :param intonation:
+    :return:
+    """
+    # enforce monotonic "breathiness_index" (higher = breathier)
+
+    hnr_mean = breathiness.get("hnr_mean_db", np.nan)
+    # higher = breathier
+    breathiness_index = -hnr_mean if (hnr_mean is not None and np.isfinite(hnr_mean)) else np.nan
+
+    flat = {
+        # Intonation
+        "f0_mean_hz": intonation.get("f0_mean_hz", np.nan),
+        "f0_sd_hz": intonation.get("f0_sd_hz", np.nan),
+        "f0_min_hz": intonation.get("f0_min_hz", np.nan),
+        "f0_max_hz": intonation.get("f0_max_hz", np.nan),
+        "f0_p5_hz": intonation.get("f0_p5_hz", np.nan),
+        "f0_p95_hz": intonation.get("f0_p95_hz", np.nan),
+        "range_semitones": intonation.get("range_semitones", np.nan),
+        "range_st_5_95": intonation.get("range_st_5_95", np.nan),
+        "slope_st_per_sec": intonation.get("slope_st_per_sec", np.nan),
+        "f0_sd_st": intonation.get("f0_sd_st", np.nan),
+        "voiced_frac": intonation.get("voiced_frac", np.nan),
+
+        # Breathiness / HNR
+        "hnr_mean_db": hnr_mean,
+        "hnr_median_db": breathiness.get("hnr_median_db", np.nan),
+        "hnr_voiced_fraction": breathiness.get("hnr_voiced_fraction", np.nan),
+        "breathiness_index": breathiness_index,
+    }
+
+    return flat
+
+
+# ---- 3) end-to-end: turn one audio file -> one feature row ----
+def feature_for_file(sound: parselmouth.Sound,
+                     data_rows: list[list[float]],
+                     file_id: str) -> dict:
+    """
+    Generates a feature list, used for generating the CSV file to run through the ML algo.
+
+    :param sound: The users vocal sample
+    :param data_rows: The post filtered matrix of frequency derived from the sound object
+    :param file_id: Unique id for identifying the sample feature list
+    :return: A dictionary of the feature list.
+    """
+    formant_feats = summarize_formants(data_rows)
+
+    # intonation and breathiness index
+    ibi = extract_breathiness_and_intonation(sound)
+
+    # flatten and merge
+    flat_ib = flatten_features(ibi["breathiness"], ibi["intonation"])
+    row = {
+        "file_id": file_id,
+
+    }
+
+    row.update(formant_feats)
+    row.update(flat_ib)
+
+    return row
+
+
+def _feature_for_file(sound: parselmouth.Sound,
+                     data_rows: list[list[float]],
+                     file_id: str,
+                     label: int) -> dict:
+    """
+    [Used for training]\n
+    Generates a feature list, used for generating the CSV file to run through the ML algo.
+
+    :param sound: The users vocal sample
+    :param data_rows: The post filtered matrix of frequency derived from the sound object
+    :param file_id: Unique id for identifying the sample feature list
+    :param label: Labels the dependent variable.
+    0 = Masculine, 1 = Feminine.
+    :return: A dictionary of the feature list.
+    """
+    formant_feats = summarize_formants(data_rows)
+
+    # intonation and breathiness index
+    ibi = extract_breathiness_and_intonation(sound)
+
+    # flatten and merge
+    flat_ib = flatten_features(ibi["breathiness"], ibi["intonation"])
+    row = {
+        "file_id": file_id,
+    }
+
+    row.update(formant_feats)
+    row.update(flat_ib)
+    row.update(["label",label])
+
+    return row
 
 def plot_formants(time_: list[float], f0_: list[float],
                   f1_: list[float], f2_: list[float],
                   f3_: list[float], f4_: list[float]) -> bytes:
+    """
+    Generates a dot graph of all the different formant and returns
+
+    :param time_: The list of time sequence
+    :param f0_: The list of pitch
+    :param f1_: The list of Formants 1
+    :param f2_: The list of Formant 2
+    :param f3_: The list of Formant 3
+    :param f4_: The list of Formant 4
+    return: the bytes of the plot.
+    """
+
     ticks1 = np.arange(0, 1001, 100)
     ticks2 = np.arange(1000, 8001, 500)
     yticks = np.unique(np.concatenate([ticks1, ticks2]))
@@ -312,12 +503,10 @@ def plot_formants(time_: list[float], f0_: list[float],
     return buf.getvalue()
 
 
-"""
-Generate a SQLite3 table that holds 
-"""
-
-
 def connect_table():
+    """
+    Generate an SQLite3 table that stores chart data for GUI, f0-f4 frequency data, and formant mean data.
+    """
     conn = sqlite3.connect("Vocal_Analysis.db")
     cursor = conn.cursor()
 
@@ -339,15 +528,22 @@ def connect_table():
     conn.close()
 
 
-"""
-Inserts the formant data (raw and average) into the sql database.
+def insert_to_table(time_: list[float], f0_: list[float], f1_: list[float], f2_: list[float], f3_: list[float], f4_: list[float],
+                    formant_avg: list[float]) -> None:
+    """
+    Inserts the formant data (filtered and average) into the SQL database and generates a plot.
+    Each element of formant corresponds to the time stamp in the list of time sequence.
 
-"""
-
-
-def insert_to_table(time_0, f0_, f1_, f2_, f3_, f4_: list[float],
-                    formant_avg: list[int]) -> None:
-    png_bytes = plot_formants(time_0, f0_, f1_, f2_, f3_, f4_)
+    :param time_: The list of time sequence
+    :param f0_: The list of pitch
+    :param f1_: The list of Formants 1
+    :param f2_: The list of Formant 2
+    :param f3_: The list of Formant 3
+    :param f4_: The list of Formant 4
+    :param formant_avg: List of average formants (F0-F1)
+    :return: None
+    """
+    png_bytes = plot_formants(time_, f0_, f1_, f2_, f3_, f4_)
     payload = (
         json.dumps(list(map(float, f0_))),
         json.dumps(list(map(float, f1_))),
@@ -367,28 +563,30 @@ def insert_to_table(time_0, f0_, f1_, f2_, f3_, f4_: list[float],
     conn.commit()
     conn.close()
 
-
-"""
-Collects the vocal analysis data from the users vocal recording.
-"""
-
+def _create_csv(row: dict) -> None:
+    """
+    Exports the feature list to a CSV file.
+    :param row: The feature list.
+    :return: None
+    """
+    out_csv = "user_features.csv"
+    pd.DataFrame([row]).to_csv(
+        out_csv,
+        mode="a",
+        header=not Path(out_csv).exists(),
+        index=False
+    )
+    print("CSV has been generated!")
 
 def main():
-    # sys.argv[0] is the script name
-    # sys.argv[1] is the argument from java
+    _reset_track_state()
+
     try:
         global FILE_PATH
         FILE_PATH = sys.argv[1]
         if FILE_PATH:
 
             sound = parselmouth.Sound(FILE_PATH)
-            metrics = extract_breathiness_and_intonation(
-                sound,
-                time_step=0.005,
-                pitch_floor=60.0,
-                pitch_ceiling=500.0  # keep high to cover feminine ranges
-            )
-            print(metrics)
 
             formant = sound.to_formant_burg(time_step=0.01)
             pitch = sound.to_pitch(time_step=0.01)
@@ -416,13 +614,19 @@ def main():
                     f3_dict[float(t)] = f3
                     f4_dict[float(t)] = f4
 
-                    full_data.append([float(round(t,2)), round(f0, 5), round(f1, 5), round(f2, 5), round(f3, 5),
+                    full_data.append([float(round(t, 2)), round(f0, 5), round(f1, 5), round(f2, 5), round(f3, 5),
                                       round(f4, 5)])
 
-
             full_data = filter_frequency_synchronized_patch(full_data)
+
+            if not full_data:
+                print("No valid frames after filtering; skipping file")
+                return
+
+            row = feature_for_file(sound, full_data, file_id=Path(FILE_PATH).stem)
+            _create_csv(row)
+
             times_, f0_vals_arr, f1_vals_arr, f2_vals_arr, f3_vals_arr, f4_vals_arr = [], [], [], [], [], []
-            print(full_data)
 
             for i in range(len(full_data)):
                 times_.append(full_data[i][0])

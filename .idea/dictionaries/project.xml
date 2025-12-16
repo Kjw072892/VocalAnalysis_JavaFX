@@ -3,12 +3,14 @@
     <words>
       <w>allusers</w>
       <w>candara</w>
+      <w>defualt</w>
       <w>delims</w>
       <w>enabledelayedexpansion</w>
       <w>errorlevel</w>
       <w>ffplay</w>
       <w>formants</w>
       <w>freqs</w>
+      <w>hashdone</w>
       <w>hiddenimports</w>
       <w>hooksconfig</w>
       <w>hookspath</w>

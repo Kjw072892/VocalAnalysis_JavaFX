@@ -6,9 +6,14 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
-
 import java.io.IOException;
 
+/**
+ * Opens the file selector scene.
+ *
+ * @author Kassie Whitney
+ * @version 9.4.25
+ */
 public class Main extends Application {
     @Override
     public void start(Stage stage) throws IOException {

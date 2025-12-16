@@ -9,7 +9,8 @@ set "PY_SHORT_FALLBACK=312"
 set "ARCH=amd64"
 set "VENV_DIR=.venv"
 set "REQ_FILE=requirements.txt"
-set "DEFAULT_PKGS=praat-parselmouth numpy matplotlib"
+set "DEFAULT_PKGS=praat-parselmouth numpy matplotlib pandas"
+
 set "REQ_HASH_FILE=%VENV_DIR%\.req.sha256"
 set "READY_MARK=%VENV_DIR%\.ready"
 
@@ -127,7 +128,7 @@ if exist "%READY_MARK%" (
     if /I "!HASH_OUT!"=="!OLDHASH!" (
       "%VENV_PY%" -c "import sys; ok=0
 try:
-    import parselmouth, numpy, matplotlib
+    import parselmouth, numpy, matplotlib, pandas
 except Exception:
     ok=1
 sys.exit(ok)" && exit /b 0
@@ -136,7 +137,7 @@ sys.exit(ok)" && exit /b 0
     REM No requirements file; verify defaults present
     "%VENV_PY%" -c "import sys; ok=0
 try:
-    import parselmouth, numpy, matplotlib
+    import parselmouth, numpy, matplotlib, pandas
 except Exception:
     ok=1
 sys.exit(ok)" && exit /b 0
@@ -168,7 +169,7 @@ if exist "%REQ_FILE%" (
 )
 
 REM Post-install sanity check: fail fast if imports still broken
-"%VENV_PY%" -c "import parselmouth, numpy, matplotlib" || (call :log "Post-install import failed." & exit /b 2)
+"%VENV_PY%" -c "import parselmouth, numpy, matplotlib, pandas" || (call :log "Post-install import failed." & exit /b 2)
 
 REM mark ready
 > "%READY_MARK%" echo ready
@@ -186,5 +187,5 @@ REM Optional: quick versions log for debugging
 "%VENV_PY%" -m pip --version
 "%VENV_PY%" -c "import sys; print('Python', sys.version)"
 "%VENV_PY%" -c "import numpy, matplotlib; import parselmouth; print('numpy', numpy.__version__, 'matplotlib', matplotlib.__version__)"
-
+"%VENV_PY%" -c "import pandas; print('pandas', pandas.__version__)"
 exit /b 0
